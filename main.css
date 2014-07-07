@@ -1,0 +1,30 @@
+body {
+	font-family: 'Open Sans', sans-serif;
+}
+
+header, #game-area {
+	text-align: center;
+}
+
+#game-area {
+	width: 100%;
+}
+
+#game-container {
+	
+	width: 800px;
+	height: 600px;
+	margin: 0 auto;
+	border: 1px solid #999;
+}
+
+* {
+	box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	-webkit-box-sizing: border-box;
+}
+
+footer {
+	font-size: 0.8em;
+	padding-left: 25px;
+}
