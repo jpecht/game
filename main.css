@@ -6,6 +6,10 @@ header, #game-area {
 	text-align: center;
 }
 
+nav {
+	padding-left: 25px;
+}
+
 #game-area {
 	width: 100%;
 }
@@ -27,4 +31,10 @@ header, #game-area {
 footer {
 	font-size: 0.8em;
 	padding-left: 25px;
+}
+
+.health-bar {
+	height: 10px;
+	width: 40px;
+	background-color: red;
 }
