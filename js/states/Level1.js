@@ -2,18 +2,12 @@ Game.Level1 = function(game) {
 
 };
 
-var groundY = 500;
-var player_maxSpeed = 200;
-var player_acceleration = 1000;
-var drag = 700;
-
 /*var game,
     player,
     spaceship,
     blue_turrets,
     red_turrets,
     bullets,
-    player_hp_display;
 */
 
 Game.Level1.prototype = {
@@ -28,13 +22,13 @@ Game.Level1.prototype = {
         
         // add setting
         this.add.sprite(0, 0, 'sky');
-        ground = this.add.sprite(0, groundY, 'ground');
+        ground = this.add.sprite(0, this.game.groundY, 'ground');
         this.physics.arcade.enable(ground);
         ground.body.immovable = true;
         ground.body.allowGravity = false;
 
         // add sprites
-        player = this.add.sprite(this.world.centerX, groundY, 'guy');
+        player = this.add.sprite(this.world.centerX, this.game.groundY, 'guy');
         spaceship = this.add.sprite(20, 150, 'spaceship');
 
         // add bullets
@@ -47,8 +41,8 @@ Game.Level1.prototype = {
         this.physics.arcade.enable(player);        
         player.anchor.setTo(0.5, 0.5);
         player.body.collideWorldBounds = true;
-        player.body.maxVelocity.setTo(player_maxSpeed, player_maxSpeed);
-        player.body.drag.setTo(drag, 0);
+        player.body.maxVelocity.setTo(this.game.player_maxSpeed, this.game.player_maxSpeed);
+        player.body.drag.setTo(this.game.drag, 0);
         player.maxHealth = 10;
         player.health = 10;
         this.game.addHealthBar(player);
@@ -81,11 +75,8 @@ Game.Level1.prototype = {
             health: 5
         });
 
-        // add pause button
-        //this.add.text(this.width-100, 10, 'Pause', {fontSize: '10px', cursor: 'pointer'}); 
-        
-        // add hp display
-        player_hp_display = this.add.text(5, 5, '10', {fontSize: '12px'});
+        this.game.addHPDisplay();
+        this.game.addMoneyDisplay();
     },
     
     update: function() {
@@ -94,9 +85,9 @@ Game.Level1.prototype = {
         // update player movement
         cursors = this.input.keyboard.createCursorKeys();   
         if (cursors.left.isDown) {
-            player.body.acceleration.x = -player_acceleration;  
+            player.body.acceleration.x = -this.game.player_acceleration;  
         } else if (cursors.right.isDown) {
-            player.body.acceleration.x = player_acceleration;
+            player.body.acceleration.x = this.game.player_acceleration;
         } else {
             player.body.acceleration.x = 0;
         }

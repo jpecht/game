@@ -1,4 +1,25 @@
 var definePropertyFunctions = function(game) {
+
+    // constants
+    game.groundY = 500;
+    game.player_maxSpeed = 200;
+    game.player_acceleration = 1000;
+    game.drag = 700;
+
+
+    // game displays
+    game.addPauseButton = function() {
+        this.add.text(this.width-100, 10, 'Pause', {fontSize: '10px', cursor: 'pointer'}); 
+    }
+    game.addHPDisplay = function() {
+        game.player_hp_display = this.add.text(5, 5, '10', {font: '16px Arial'});        
+    }
+    game.addMoneyDisplay = function() {
+        game.money_display = this.add.text(5, 30, '$200', {font: '16px Arial', fill: 'green'})
+    }
+
+
+    // behaviors
     game.bulletHit = function(hitee, bullet) {
         bullet.kill();
         hitee.health--;

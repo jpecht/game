@@ -7,15 +7,23 @@ Game.MainMenu.prototype = {
 	create: function () {
 
 		/*this.music = this.add.audio('titleMusic');
-		this.music.play();
-
-		this.add.sprite(0, 0, 'titlepage');
-
-		this.playButton = this.add.button(400, 600, 'playButton', this.startGame, this, 'buttonOver', 'buttonOut', 'buttonOver');
-		*/
+		this.music.play();*/
 
         this.stage.backgroundColor = '#FFF';
-        this.start_button = this.add.text(this.world.centerX, this.world.centerY, 'START', {fontSize: '20px'});
+
+        this.titleText = this.add.text(this.world.centerX, this.world.centerY-30, 'GAME', {
+        	font: '32px Arial'
+        });
+        this.titleText.anchor.setTo(0.5, 0.5);
+
+        this.authorText = this.add.text(this.world.centerX, this.world.centerY, 'by Jefferson', {
+        	font: '14px Arial'
+        });
+        this.authorText.anchor.setTo(0.5, 0.5);
+
+        this.start_button = this.add.text(this.world.centerX, this.world.centerY+100, 'START', {
+        	font: '24px Arial'
+       	});
         this.start_button.anchor.setTo(0.5, 0.5);
         this.start_button.inputEnabled = true;
 
