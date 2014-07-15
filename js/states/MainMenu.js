@@ -26,7 +26,7 @@ Game.MainMenu.prototype = {
        	});
         this.start_button.anchor.setTo(0.5, 0.5);
         this.start_button.inputEnabled = true;
-
+        this.start_button.buttonMode = true;
 	},
 
 	update: function () {
