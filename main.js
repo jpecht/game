@@ -3,6 +3,41 @@
  */
 
 window.onload = function() {
+
+    /* ------------------------- TITLE SCREEN ---------------------------- */
+
+    var start_button;
+
+    function t_preload() {
+
+    }
+
+    function t_create() {
+        game.stage.backgroundColor = '#FFF';
+        start_button = game.add.text(game.world.centerX, game.world.centerY, 'START', {fontSize: '20px'});
+        start_button.anchor.setTo(0.5, 0.5);
+        start_button.inputEnabled = true;
+
+        game.state.add('level1', {
+            preload: preload,
+            create: create,
+            update: update
+        }, false);
+    }
+
+    function t_update() {
+        if (start_button.input.pointerDown()) {
+            game.state.start('level1');
+        }
+    }
+
+    var game = new Phaser.Game(800, 600, Phaser.AUTO, 'game-container', {
+        preload: t_preload,
+        create: t_create,
+        update: t_update
+    });   
+
+    /* ----------------------------- GAME -------------------------------- */
 	
 	var groundY = 500;
 	var player_maxSpeed = 200;
@@ -204,12 +239,6 @@ window.onload = function() {
 			};
  		}, this);	 			
 	};
-
-	var game = new Phaser.Game(800, 600, Phaser.AUTO, 'game-container', {
-		preload: preload,
-		create: create,
-		update: update
-	});
 };
 
 
