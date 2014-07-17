@@ -10,13 +10,13 @@ var definePropertyFunctions = function(game) {
     // game displays
     game.addPauseButton = function() {
         this.add.text(this.width-100, 10, 'Pause', {fontSize: '10px', cursor: 'pointer'}); 
-    }
+    };
     game.addHPDisplay = function() {
         game.player_hp_display = this.add.text(5, 5, '10', {font: '16px Arial'});        
-    }
+    };
     game.addMoneyDisplay = function() {
         game.money_display = this.add.text(5, 30, '$200', {font: '16px Arial', fill: 'green'})
-    }
+    };
 
 
     // behaviors
@@ -38,7 +38,7 @@ var definePropertyFunctions = function(game) {
                 player.kill();
             }
         }
-    }
+    };
 
     // property definitions
     game.addHealthBar = function(sprite) {
@@ -79,4 +79,4 @@ var definePropertyFunctions = function(game) {
             };
         }, this);               
     };
-}
+};

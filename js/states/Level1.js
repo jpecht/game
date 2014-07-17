@@ -129,4 +129,4 @@ Game.Level1.prototype = {
         this.physics.arcade.overlap(blue_turrets, red_bullets, this.game.bulletHit);
         this.physics.arcade.overlap(blue_bullets, spaceship, this.game.bulletHit);
     }
-}
+};
