@@ -129,4 +129,4 @@ Game.Level1.prototype = {
             }, 5000);
         }
     }
-}
+};

@@ -11,18 +11,18 @@ var definePropertyFunctions = function(game) {
     game.addPauseButton = function() {
         game.pause_button = this.add.text(this.width-100, 10, 'Pause', {fontSize: '10px', cursor: 'pointer'});
         return game.pause_button;
-    }
+    };
     game.addHPDisplay = function() {
         game.player_hp_display = this.add.text(5, 5, '10', {font: '16px Arial'});  
         return game.player_hp_display;      
-    }
+    };
     game.addMoneyDisplay = function() {
         game.money_display = this.add.text(5, 30, '$1000', {font: '16px Arial', fill: 'green'});
         return game.money_display;
-    }
+    };
     game.addHotbar = function() {
 
-    }
+    };
 
     // adding enemies
     game.addSpaceships = function(level, num) {
@@ -75,7 +75,7 @@ var definePropertyFunctions = function(game) {
                 player.kill();
             }
         }
-    }
+    };
 
 
     // turrets
@@ -89,7 +89,7 @@ var definePropertyFunctions = function(game) {
             cost: 100           
         });
         return group;
-    }
+    };
     game.addGreenTurrets = function(level) {
         var group = level.add.group();
         game.addTurretProperties(group, {
@@ -99,7 +99,7 @@ var definePropertyFunctions = function(game) {
             cost: 150
         });
         return group;
-    }
+    };
 
     // property definitions
     game.addHealthBar = function(sprite, num) {
