@@ -32,7 +32,7 @@ Game.MainMenu.prototype = {
 	update: function () {
         if (this.start_button.input.pointerDown()) {
         	//this.music.stop();
-        	this.state.start('Level1');
+        	this.state.start('PickClass');
         }
 	},
 };

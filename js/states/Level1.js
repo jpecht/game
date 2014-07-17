@@ -1,5 +1,6 @@
 Game.Level1 = function(game) {
     this.start_money = 300;
+    this.num_spaceships = 2;
 };
 
 /*var game,
@@ -29,7 +30,9 @@ Game.Level1.prototype = {
 
         // add sprites
         player = this.add.sprite(this.world.centerX, this.game.groundY, 'guy');
-        spaceship = this.add.sprite(20, 150, 'spaceship');
+
+        // spaceships
+        spaceships = this.game.addSpaceships(this, 2);
 
         // add bullets
         red_bullets = this.add.group();
@@ -43,28 +46,10 @@ Game.Level1.prototype = {
         player.body.collideWorldBounds = true;
         player.body.maxVelocity.setTo(this.game.player_maxSpeed, this.game.player_maxSpeed);
         player.body.drag.setTo(this.game.drag, 0);
-        player.maxHealth = 10;
-        player.health = 10;
-        this.game.addHealthBar(player);
-
-        // set spaceship properties
-        this.physics.arcade.enable(spaceship);
-        spaceship.anchor.setTo(0.5, 0.5);
-        spaceship.body.collideWorldBounds = true;
-        spaceship.body.velocity.x = 100;   
-        spaceship.body.bounce.set(1);
-        spaceship.fireTimer = this.time.now;
-        spaceship.fireFreq = 2000;
-        spaceship.maxHealth = 5;
-        spaceship.health = 5;
-        spaceship.shoot = function() {
-            var bullet = red_bullets.getFirstExists(false);
-            bullet.reset(spaceship.body.x, spaceship.body.y + spaceship.body.height);
-            //this.physics.arcade.moveToXY(bullet, spaceship.body.x, this.height, 100);
-            this.game.physics.arcade.moveToXY(bullet, spaceship.body.x, this.game.height, 100);
-        };
-        this.game.addHealthBar(spaceship);
-  
+        player.maxHealth = 5;
+        player.health = 5;
+        this.game.addHealthBar(player, 5);
+ 
   
         // add turrets      
         blue_turrets = this.game.addBlueTurrets(this);
@@ -78,6 +63,7 @@ Game.Level1.prototype = {
     
     update: function() {
         var time = this.time.now;
+        var hot_turret = blue_turrets;
 
         // update player movement
         cursors = this.input.keyboard.createCursorKeys();   
@@ -90,28 +76,31 @@ Game.Level1.prototype = {
         }
         
         // turret building
-        if (cursors.down.isDown) {
-            if (!creatingTurret) {
+        if (cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
+            if (!hot_turret.beingConstructed) {
                 // start to build turret
-                creatingTurret = true;
+                hot_turret.beingConstructed = true;
                 turretTimer = time;
             } else {
                 // check to see if done building turret
-                if (time >= turretTimer + 2000) {
-                    creatingTurret = false;
-                    blue_turrets.addToWorld();
+                if (time >= turretTimer + hot_turret.attr.constructTime) {
+                    hot_turret.addToWorld();
+                    hot_turret.beingConstructed = false;
                 }
             }
         } else {
             creatingTurret = false;
+            hot_turret.beingConstructed = false;    
         }
         
         // enemy firing
-        if (time > spaceship.fireTimer + spaceship.fireFreq) {
-            spaceship.fireTimer = time;
-            spaceship.shoot();
-        }
-        
+        spaceships.forEachAlive(function(spaceship) {
+            if (time > spaceship.fireTimer + spaceship.fireFreq) {
+                spaceship.fireTimer = time;
+                spaceship.shoot();
+            }
+        });
+            
         // turrets firing
         blue_turrets.forEachAlive(function(turret) {
             if (time > turret.fireTimer + turret.fireFreq) {
@@ -124,6 +113,20 @@ Game.Level1.prototype = {
         // check if bullet collided with anyone; callback function doesnt seem to be calling in order
         this.physics.arcade.overlap(red_bullets, player, this.game.bulletHit);
         this.physics.arcade.overlap(blue_turrets, red_bullets, this.game.bulletHit);
-        this.physics.arcade.overlap(blue_bullets, spaceship, this.game.bulletHit);
+        this.physics.arcade.overlap(spaceships, blue_bullets, this.game.bulletHit);
+
+        // check if all enemies are dead
+        if (spaceships.countLiving() === 0) {
+            var text = this.game.add.text(this.game.world.centerX, this.game.world.centerY, 'Level Over. Good fucking job.', {
+                font: '32px Arial'
+            });
+            text.anchor.setTo(0.5, 0.5);
+
+            // add a fade transition of the screen
+
+            setTimeout(function() {
+                this.game.state.start('Level2');
+            }, 5000);
+        }
     }
 }

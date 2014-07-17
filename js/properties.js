@@ -24,11 +24,42 @@ var definePropertyFunctions = function(game) {
 
     }
 
+    // adding enemies
+    game.addSpaceships = function(level, num) {
+        spaceships = level.add.group();
+        spaceships.enableBody = true;
+        spaceships.physicsBodyType = Phaser.Physics.ARCADE;
+        spaceships.createMultiple(30, 'spaceship');
+        spaceships.setAll('anchor.x', 0.5);
+        spaceships.setAll('anchor.y', 0.5);
+
+        spaceships.forEach(function(spaceship) {
+            spaceship.body.collideWorldBounds = true;
+            spaceship.body.bounce.set(1);
+            spaceship.fireTimer = game.time.now;
+            spaceship.fireFreq = 2000;
+            spaceship.shoot = function() {
+                var bullet = red_bullets.getFirstExists(false);
+                bullet.reset(spaceship.body.x + spaceship.body.width/2, bullet.height + spaceship.body.y + spaceship.body.height);
+                game.physics.arcade.moveToXY(bullet, spaceship.body.x + spaceship.body.width/2, game.height, 100);
+            };
+            game.addHealthBar(spaceship, 3);
+        });
+
+        for (var i = 0; i < num; i++) {
+            var spaceship = spaceships.getFirstExists(false);
+            spaceship.reset(level.world.randomX, 150, spaceship.maxHealth);
+            spaceship.body.velocity.x = 100;
+            spaceship.fireTimer = game.time.now;
+        }
+        return spaceships;
+    }
+
 
     // behaviors
     game.bulletHit = function(hitee, bullet) {
         bullet.kill();
-        hitee.health--;
+        hitee.damage(1);
         if (hitee.health_bar) {         
             hitee.health_bar.crop({
                 x: 0,
@@ -52,8 +83,9 @@ var definePropertyFunctions = function(game) {
         var group = level.add.group();
         game.addTurretProperties(group, {
             img_id: 'blue_turret',
+            constructTime: 2000,
             fireFreq: 1500,
-            health: 5,
+            health: 3,
             cost: 100           
         });
         return group;
@@ -70,7 +102,9 @@ var definePropertyFunctions = function(game) {
     }
 
     // property definitions
-    game.addHealthBar = function(sprite) {
+    game.addHealthBar = function(sprite, num) {
+        sprite.maxHealth = num;
+        sprite.health = num;
         sprite.health_bar_container = game.add.sprite(-16, -25, 'health_bar_container');
         sprite.health_bar = game.add.sprite(1, 1, 'health_bar');
         sprite.health_bar_container.addChild(sprite.health_bar);
@@ -86,34 +120,43 @@ var definePropertyFunctions = function(game) {
         group.setAll('checkWorldBounds', true);
     };
     game.addTurretProperties = function(group, attr) {
+        group.attr = {};
+        for (var ind in attr) group.attr[ind] = attr[ind];
+
         group.enableBody = true;
         group.physicsBodyType = Phaser.Physics.ARCADE;
         group.createMultiple(30, attr.img_id);
         group.setAll('anchor.x', 0.5);
         group.setAll('anchor.y', 0.5);
         group.addToWorld = function() {
-            if (game.money >= attr.cost) {
-                game.subtractMoney(attr.cost);
+            if (game.buySomething(attr.cost)) {
                 var turret = group.getFirstExists(false);
                 turret.reset(player.body.x + player.body.width/2, player.body.y + 30, turret.maxHealth); 
-                turret.fireTimer = game.time.now;       
+                turret.fireTimer = game.time.now;
+                return turret;
+            } else {
+                return false;
             }
         };
         group.forEach(function(turret) {
-            game.addHealthBar(turret);
-            turret.health = attr.health;
-            turret.maxHealth = attr.health;
+            game.addHealthBar(turret, attr.health);
             turret.fireFreq = attr.fireFreq;
             turret.shoot = function() {
                 var bullet = blue_bullets.getFirstExists(false);
                 bullet.reset(turret.body.x + turret.body.width/2, turret.body.y);
-                game.physics.arcade.moveToXY(bullet, turret.body.x, 0, 100);            
+                game.physics.arcade.moveToXY(bullet, turret.body.x + turret.body.width/2, 0, 100);            
             };
         }, this);               
     };
 
-    game.subtractMoney = function(cost) {
-        game.money -= cost;
-        if (game.money_display) game.money_display.setText('$' + game.money);
+    game.buySomething = function(cost) {
+        if (game.money >= cost) {
+            game.money -= cost;
+            if (game.money_display) game.money_display.setText('$' + game.money);
+            return true;
+        } else {
+            // add "Need More Money" popup
+            return false;
+        }
     }
 }
