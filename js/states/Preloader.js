@@ -17,6 +17,12 @@ Game.Preloader.prototype = {
 		/*this.load.image('titlepage', 'images/title.jpg');
 		this.load.audio('titleMusic', ['audio/main_menu.mp3']);
 		this.load.bitmapFont('caslon', 'fonts/caslon.png', 'fonts/caslon.xml');*/
+
+		this.load.image('class_builder', 'img/builder.png');
+		this.load.image('class_ninja', 'img/ninja.png');
+		this.load.image('class_tank', 'img/tank.png');
+		this.load.image('class_merchant', 'img/merchant.png');
+
     	this.load.image('sky', 'img/clouds.png');
     	this.load.image('ground', 'img/grass.png');
 		this.load.image('spaceship', 'img/ufo.png');

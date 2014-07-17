@@ -12,6 +12,8 @@ window.onload = function() {
     definePropertyFunctions(game);
     
     game.state.add('Level1', Game.Level1);
+    game.state.add('Level2', Game.Level2);
+    game.state.add('YouWin', Game.YouWin);
 
     game.state.start('Boot');
 }

@@ -24,6 +24,125 @@ var definePropertyFunctions = function(game) {
 
     };
 
+
+    // general create and update
+    game.createWorld = function(level) {
+        // start physics engine
+        level.physics.startSystem(Phaser.Physics.ARCADE);
+        level.physics.arcade.checkCollision.down = false;
+        
+        // add setting
+        level.add.sprite(0, 0, 'sky');
+        ground = level.add.sprite(0, game.groundY, 'ground');
+        level.physics.arcade.enable(ground);
+        ground.body.immovable = true;
+        ground.body.allowGravity = false;
+
+        // add sprites
+        player = level.add.sprite(level.world.centerX, game.groundY, 'guy');
+
+        // spaceships
+        spaceships = game.addSpaceships(level, 2);
+
+        // add bullets
+        red_bullets = level.add.group();
+        blue_bullets = level.add.group();
+        game.addBulletProperties(red_bullets, 'red_bullet');
+        game.addBulletProperties(blue_bullets, 'blue_bullet');                                          
+
+        // set player properties
+        level.physics.arcade.enable(player);        
+        player.anchor.setTo(0.5, 0.5);
+        player.body.collideWorldBounds = true;
+        player.body.maxVelocity.setTo(game.player_maxSpeed, game.player_maxSpeed);
+        player.body.drag.setTo(game.drag, 0);
+        player.maxHealth = 5;
+        player.health = 5;
+        game.addHealthBar(player, 5);
+ 
+  
+        // add turrets      
+        blue_turrets = game.addBlueTurrets(level);
+
+
+        game.addHPDisplay();
+
+        game.money += level.start_money;
+        game.addMoneyDisplay().text = '$' + level.game.money;
+    };
+
+    game.updateWorld = function(level, next_level_id) {
+        var time = level.time.now;
+        var hot_turret = blue_turrets;
+
+        // update player movement
+        cursors = level.input.keyboard.createCursorKeys();   
+        if (cursors.left.isDown) {
+            player.body.acceleration.x = -game.player_acceleration;  
+        } else if (cursors.right.isDown) {
+            player.body.acceleration.x = game.player_acceleration;
+        } else {
+            player.body.acceleration.x = 0;
+        }
+        
+        // turret building
+        if (cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
+            if (!hot_turret.beingConstructed) {
+                // start to build turret
+                hot_turret.beingConstructed = true;
+                turretTimer = time;
+            } else {
+                // check to see if done building turret
+                if (time >= turretTimer + hot_turret.attr.constructTime) {
+                    hot_turret.addToWorld();
+                    hot_turret.beingConstructed = false;
+                }
+            }
+        } else {
+            creatingTurret = false;
+            hot_turret.beingConstructed = false;    
+        }
+        
+        // enemy firing
+        spaceships.forEachAlive(function(spaceship) {
+            if (time > spaceship.fireTimer + spaceship.fireFreq) {
+                spaceship.fireTimer = time;
+                spaceship.shoot();
+            }
+        });
+            
+        // turrets firing
+        blue_turrets.forEachAlive(function(turret) {
+            if (time > turret.fireTimer + turret.fireFreq) {
+                turret.fireTimer = time;
+                turret.shoot();
+            }
+        }, level);
+        
+        
+        // check if bullet collided with anyone; callback function doesnt seem to be calling in order
+        level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
+        level.physics.arcade.overlap(blue_turrets, red_bullets, game.bulletHit);
+        level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
+
+        // check if game is over OR all enemies are dead
+        if (level.nextLevelTimer && time > level.nextLevelTimer + 2000) {
+            level.state.start(next_level_id);
+        } 
+        if (spaceships.countLiving() === 0 && !level.nextLevelTimer) {
+            var text = game.add.text(game.world.centerX, game.world.centerY, 'Level Over. Good fucking job.', {
+                font: '32px Arial',
+                fill: 'rgba(0, 0, 0, 0.8)'
+            });
+            text.anchor.setTo(0.5, 0.5);
+
+            // add a fade transition of the screen
+            game.stage.backgroundColor = 'rgba(38, 139, 56, 0.3)';
+            level.nextLevelTimer = time;
+        }
+    };
+
+
     // adding enemies
     game.addSpaceships = function(level, num) {
         spaceships = level.add.group();
@@ -55,30 +174,7 @@ var definePropertyFunctions = function(game) {
         return spaceships;
     }
 
-
-    // behaviors
-    game.bulletHit = function(hitee, bullet) {
-        bullet.kill();
-        hitee.damage(1);
-        if (hitee.health_bar) {         
-            hitee.health_bar.crop({
-                x: 0,
-                y: 0, 
-                width: 32 * hitee.health / hitee.maxHealth,
-                height: hitee.health_bar.height
-            });
-        }
-        
-        if (hitee == player) {
-            game.player_hp_display.setText(player.health);
-            if (player.health <= 0) {
-                player.kill();
-            }
-        }
-    };
-
-
-    // turrets
+    // properties for specific turrets
     game.addBlueTurrets = function(level) {
         var group = level.add.group();
         game.addTurretProperties(group, {
@@ -101,7 +197,7 @@ var definePropertyFunctions = function(game) {
         return group;
     };
 
-    // property definitions
+    // properties that apply to groups
     game.addHealthBar = function(sprite, num) {
         sprite.maxHealth = num;
         sprite.health = num;
@@ -148,6 +244,29 @@ var definePropertyFunctions = function(game) {
             };
         }, this);               
     };
+
+
+    // behaviors
+    game.bulletHit = function(hitee, bullet) {
+        bullet.kill();
+        hitee.damage(1);
+        if (hitee.health_bar) {         
+            hitee.health_bar.crop({
+                x: 0,
+                y: 0, 
+                width: 32 * hitee.health / hitee.maxHealth,
+                height: hitee.health_bar.height
+            });
+        }
+        
+        if (hitee == player) {
+            game.player_hp_display.setText(player.health);
+            if (player.health <= 0) {
+                player.kill();
+            }
+        }
+    };
+
 
     game.buySomething = function(cost) {
         if (game.money >= cost) {
