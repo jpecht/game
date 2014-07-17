@@ -1,5 +1,5 @@
 Game.Level1 = function(game) {
-
+    this.start_money = 300;
 };
 
 /*var game,
@@ -67,16 +67,13 @@ Game.Level1.prototype = {
   
   
         // add turrets      
-        red_turrets = this.add.group();
-        blue_turrets = this.add.group();
-        this.game.addTurretProperties(blue_turrets, {
-            img_id: 'blue_turret',
-            fireFreq: 1500,
-            health: 5
-        });
+        blue_turrets = this.game.addBlueTurrets(this);
+
 
         this.game.addHPDisplay();
-        this.game.addMoneyDisplay();
+
+        this.game.money += this.start_money;
+        this.game.addMoneyDisplay().text = '$' + this.game.money;
     },
     
     update: function() {
