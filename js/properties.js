@@ -1,31 +1,16 @@
 var definePropertyFunctions = function(game) {
 
-    // constants
+    // ----------------------------- constants -------------------------------
     game.groundY = 500;
     game.drag = 700;
     game.player_maxSpeed = 200;
     game.player_acceleration = 1000;
     game.money = 0;
 
-    // game displays
-    game.addPauseButton = function() {
-        game.pause_button = this.add.text(this.width-100, 10, 'Pause', {fontSize: '10px', cursor: 'pointer'});
-        return game.pause_button;
-    };
-    game.addHPDisplay = function() {
-        game.player_hp_display = this.add.text(5, 5, '10', {font: '16px Arial'});  
-        return game.player_hp_display;      
-    };
-    game.addMoneyDisplay = function() {
-        game.money_display = this.add.text(5, 30, '$1000', {font: '16px Arial', fill: 'green'});
-        return game.money_display;
-    };
-    game.addHotbar = function() {
-
-    };
+    game.hotbar_crosswalk = [];
 
 
-    // general create and update
+    // ------------------------- create and update ---------------------------
     game.createWorld = function(level) {
         // start physics engine
         level.physics.startSystem(Phaser.Physics.ARCADE);
@@ -38,19 +23,8 @@ var definePropertyFunctions = function(game) {
         ground.body.immovable = true;
         ground.body.allowGravity = false;
 
-        // add sprites
+        // add player
         player = level.add.sprite(level.world.centerX, game.groundY, 'guy');
-
-        // spaceships
-        spaceships = game.addSpaceships(level, 2);
-
-        // add bullets
-        red_bullets = level.add.group();
-        blue_bullets = level.add.group();
-        game.addBulletProperties(red_bullets, 'red_bullet');
-        game.addBulletProperties(blue_bullets, 'blue_bullet');                                          
-
-        // set player properties
         level.physics.arcade.enable(player);        
         player.anchor.setTo(0.5, 0.5);
         player.body.collideWorldBounds = true;
@@ -59,21 +33,88 @@ var definePropertyFunctions = function(game) {
         player.maxHealth = 5;
         player.health = 5;
         game.addHealthBar(player, 5);
+
+        // add spaceships
+        spaceships = game.addSpaceships(level, level.num_spaceships);
+
+        // add turrets
+        if (level.availTurrets.blue_turret) {
+            blue_turrets = game.addBlueTurrets(level);
+            game.hotbar_crosswalk[0] = blue_turrets;
+        }
+        if (level.availTurrets.green_turret) {
+            green_turrets = game.addGreenTurrets(level);
+            game.hotbar_crosswalk[1] = green_turrets;
+        }
+
+        // add bullets
+        red_bullets = level.add.group();
+        blue_bullets = level.add.group();
+        game.addBulletProperties(red_bullets, 'red_bullet');
+        game.addBulletProperties(blue_bullets, 'blue_bullet');                                          
  
-  
-        // add turrets      
-        blue_turrets = game.addBlueTurrets(level);
+         // add hp display
+        game.player_hp_display = this.add.text(5, 5, player.health, {font: '16px Arial'});  
 
-
-        game.addHPDisplay();
-
+        // add money display
         game.money += level.start_money;
-        game.addMoneyDisplay().text = '$' + level.game.money;
+        game.money_display = this.add.text(5, 30, '$' + game.money, {
+            font: '16px Arial',
+            fill: 'green'
+        });
+
+        // add pause button
+        game.pause_button = this.add.text(this.width-100, 10, 'pause (p)', {
+            font: '16px Arial',
+            cursor: 'pointer'
+        });
+        game.pause_button.inputEnabled = true;
+
+        // add hotbar
+        game.hotbar = level.add.sprite(50, game.height - 60, 'hotbar');
+
+        game.hotbar_select = level.add.sprite(4, 4, 'hotbar_select');
+        game.hotbar.addChild(game.hotbar_select);
+
+        if (level.availTurrets.blue_turret) {
+            // blue turret should always be true
+            var blue_turret = level.add.sprite(5, 5, 'blue_turret');
+            blue_turret.scale = {x: 0.625, y: 0.625};
+            game.hotbar.addChild(blue_turret);
+            var text = level.add.text(15, 33, '1', {font: '12px Arial'});
+            text.anchor.setTo(0.5, 0);
+            game.hotbar.addChild(text);
+        }
+        if (level.availTurrets.green_turret) {
+            var green_turret = level.add.sprite(30, 5, 'green_turret');
+            green_turret.scale = {x: 0.625, y: 0.625};
+            game.hotbar.addChild(green_turret);
+            var text = level.add.text(40, 33, '2', {font: '12px Arial'});
+            text.anchor.setTo(0.5, 0);
+            game.hotbar.addChild(text);           
+        }
     };
 
     game.updateWorld = function(level, next_level_id) {
         var time = level.time.now;
-        var hot_turret = blue_turrets;
+        var hot_turret = game.hotbar_crosswalk[0];
+
+        // check pause button
+        if (game.pause_button.input.pointerDown() || level.input.keyboard.isDown(80)) {
+            game.paused = !game.paused;
+            // unpause isnt implemented yet
+            // http://examples.phaser.io/_site/view_full.html?d=misc&f=pause+menu.js&t=pause%20menu
+        }
+
+        // check hotbar switch (keycode for 1 is 49)
+        var checkHotbarKey = function(keynum) {
+            if (level.input.keyboard.isDown(keynum + 49) && game.hotbar_crosswalk[keynum]) {
+                hot_turret = game.hotbar_crosswalk[keynum];
+                game.hotbar_select.x = 25*keynum + 4;
+            }
+        };
+        for (var i = 0; i < 4; i++) checkHotbarKey(i);
+
 
         // update player movement
         cursors = level.input.keyboard.createCursorKeys();   
@@ -102,7 +143,7 @@ var definePropertyFunctions = function(game) {
             creatingTurret = false;
             hot_turret.beingConstructed = false;    
         }
-        
+
         // enemy firing
         spaceships.forEachAlive(function(spaceship) {
             if (time > spaceship.fireTimer + spaceship.fireFreq) {
@@ -143,7 +184,7 @@ var definePropertyFunctions = function(game) {
     };
 
 
-    // adding enemies
+    // ----------------------------- enemies ---------------------------------
     game.addSpaceships = function(level, num) {
         spaceships = level.add.group();
         spaceships.enableBody = true;
@@ -174,7 +215,7 @@ var definePropertyFunctions = function(game) {
         return spaceships;
     }
 
-    // properties for specific turrets
+    // ----------------------------- turrets ---------------------------------
     game.addBlueTurrets = function(level) {
         var group = level.add.group();
         game.addTurretProperties(group, {
@@ -195,25 +236,6 @@ var definePropertyFunctions = function(game) {
             cost: 150
         });
         return group;
-    };
-
-    // properties that apply to groups
-    game.addHealthBar = function(sprite, num) {
-        sprite.maxHealth = num;
-        sprite.health = num;
-        sprite.health_bar_container = game.add.sprite(-16, -25, 'health_bar_container');
-        sprite.health_bar = game.add.sprite(1, 1, 'health_bar');
-        sprite.health_bar_container.addChild(sprite.health_bar);
-        sprite.addChild(sprite.health_bar_container);
-    };
-    game.addBulletProperties = function(group, img_id) {
-        group.enableBody = true;
-        group.physicsBodyType = Phaser.Physics.ARCADE;
-        group.createMultiple(30, img_id);
-        group.setAll('anchor.x', 0.5);
-        group.setAll('anchor.y', 1);
-        group.setAll('outOfBoundsKill', true);
-        group.setAll('checkWorldBounds', true);
     };
     game.addTurretProperties = function(group, attr) {
         group.attr = {};
@@ -246,7 +268,27 @@ var definePropertyFunctions = function(game) {
     };
 
 
-    // behaviors
+    // ----------------------- group properties ------------------------------
+    game.addHealthBar = function(sprite, num) {
+        sprite.maxHealth = num;
+        sprite.health = num;
+        sprite.health_bar_container = game.add.sprite(-16, -25, 'health_bar_container');
+        sprite.health_bar = game.add.sprite(1, 1, 'health_bar');
+        sprite.health_bar_container.addChild(sprite.health_bar);
+        sprite.addChild(sprite.health_bar_container);
+    };
+    game.addBulletProperties = function(group, img_id) {
+        group.enableBody = true;
+        group.physicsBodyType = Phaser.Physics.ARCADE;
+        group.createMultiple(30, img_id);
+        group.setAll('anchor.x', 0.5);
+        group.setAll('anchor.y', 1);
+        group.setAll('outOfBoundsKill', true);
+        group.setAll('checkWorldBounds', true);
+    };
+
+
+    // -------------------- group-group interaction --------------------------
     game.bulletHit = function(hitee, bullet) {
         bullet.kill();
         hitee.damage(1);
@@ -262,12 +304,13 @@ var definePropertyFunctions = function(game) {
         if (hitee == player) {
             game.player_hp_display.setText(player.health);
             if (player.health <= 0) {
-                player.kill();
+                game.state.start('GameOver'); // need to test; might only work as level.state.start
             }
         }
     };
 
 
+    // -------------------------- miscellaneous ------------------------------
     game.buySomething = function(cost) {
         if (game.money >= cost) {
             game.money -= cost;

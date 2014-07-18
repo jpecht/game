@@ -29,8 +29,12 @@ Game.Preloader.prototype = {
 		this.load.image('red_bullet', 'img/red_shot.png');
 		this.load.image('blue_bullet', 'img/blue_shot.png');
 		this.load.image('blue_turret', 'img/blue_turret.png');
+		this.load.image('green_turret', 'img/green_turret.png');
         this.load.image('guy', 'img/guy.png');
         //this.load.atlas('playersheet', 'img/playersheet.png', 'img/playersheet.json');
+
+        this.load.image('hotbar', 'img/hotbar.png');
+        this.load.image('hotbar_select', 'img/hotbar_select.png');
         this.load.image('health_bar', 'img/health_bar.png');
         this.load.image('health_bar_container', 'img/health_bar_container.png');
 
