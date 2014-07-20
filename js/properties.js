@@ -7,8 +7,20 @@ var definePropertyFunctions = function(game) {
     game.player_acceleration = 1000;
     game.money = 0;
 
-    game.hotbar_crosswalk = [];
-
+    game.turret_attr = {
+        'blue_turret': {
+            constructTime: 2000,
+            fireFreq: 1500,
+            health: 3,
+            cost: 100
+        },
+        'green_turret': {
+            constructTime: 2000,
+            fireFreq: 1000,
+            health: 3,
+            cost: 150
+        }
+    };
 
     // ------------------------- create and update ---------------------------
     game.createWorld = function(level) {
@@ -22,6 +34,30 @@ var definePropertyFunctions = function(game) {
         level.physics.arcade.enable(ground);
         ground.body.immovable = true;
         ground.body.allowGravity = false;
+ 
+         // add hp display
+        game.player_hp_display = this.add.text(5, 5, '', {font: '16px Arial'});  
+
+        // add money display
+        game.money += level.start_money;
+        game.money_display = this.add.text(5, 30, '$' + game.money, {
+            font: '16px Arial',
+            fill: 'green'
+        });
+
+
+        // add pause button
+        game.pause_button = this.add.text(this.width-100, 10, 'pause (p)', {
+            font: '16px Arial',
+            cursor: 'pointer'
+        });
+        game.pause_button.inputEnabled = true;
+
+
+        // add hotbar
+        game.hotbar = level.add.sprite(50, game.height - 60, 'hotbar');
+        game.hotbar_select = level.add.sprite(4, 4, 'hotbar_select');
+        game.hotbar.addChild(game.hotbar_select);
 
         // add player
         player = level.add.sprite(level.world.centerX, game.groundY, 'guy');
@@ -33,71 +69,50 @@ var definePropertyFunctions = function(game) {
         player.maxHealth = 5;
         player.health = 5;
         game.addHealthBar(player, 5);
+        game.player_hp_display.setText(player.health);
 
         // add spaceships
         spaceships = game.addSpaceships(level, level.num_spaceships);
 
         // add turrets
-        if (level.availTurrets.blue_turret) {
-            blue_turrets = game.addBlueTurrets(level);
-            game.hotbar_crosswalk[0] = blue_turrets;
+        level.turrets = [];
+        var addTurret = function(index, img_id) {
+            // create turret group
+            var group = level.add.group();
+            game.addTurretProperties(group, img_id);
+
+            // add turret to hotbar
+            var turret_sprite = level.add.sprite(25*index + 5, 5, img_id);
+            turret_sprite.scale = {x: 0.625, y: 0.625};
+            game.hotbar.addChild(turret_sprite);
+            var num_text = level.add.text(25*index + 15, 33, String(index+1), {
+                font: '12px Arial'
+            });
+            num_text.anchor.setTo(0.5, 0);
+            game.hotbar.addChild(num_text);
+
+            return group;
         }
+
+        blue_turrets = addTurret(0, 'blue_turret'); // blue turrets should always be available
+        level.turrets[0] = blue_turrets;
+        level.hot_turret = blue_turrets;
+
         if (level.availTurrets.green_turret) {
-            green_turrets = game.addGreenTurrets(level);
-            game.hotbar_crosswalk[1] = green_turrets;
+            green_turrets = addTurret(1, 'green_turret');
+            level.turrets[1] = green_turrets;
         }
+ 
 
         // add bullets
         red_bullets = level.add.group();
         blue_bullets = level.add.group();
         game.addBulletProperties(red_bullets, 'red_bullet');
-        game.addBulletProperties(blue_bullets, 'blue_bullet');                                          
- 
-         // add hp display
-        game.player_hp_display = this.add.text(5, 5, player.health, {font: '16px Arial'});  
-
-        // add money display
-        game.money += level.start_money;
-        game.money_display = this.add.text(5, 30, '$' + game.money, {
-            font: '16px Arial',
-            fill: 'green'
-        });
-
-        // add pause button
-        game.pause_button = this.add.text(this.width-100, 10, 'pause (p)', {
-            font: '16px Arial',
-            cursor: 'pointer'
-        });
-        game.pause_button.inputEnabled = true;
-
-        // add hotbar
-        game.hotbar = level.add.sprite(50, game.height - 60, 'hotbar');
-
-        game.hotbar_select = level.add.sprite(4, 4, 'hotbar_select');
-        game.hotbar.addChild(game.hotbar_select);
-
-        if (level.availTurrets.blue_turret) {
-            // blue turret should always be true
-            var blue_turret = level.add.sprite(5, 5, 'blue_turret');
-            blue_turret.scale = {x: 0.625, y: 0.625};
-            game.hotbar.addChild(blue_turret);
-            var text = level.add.text(15, 33, '1', {font: '12px Arial'});
-            text.anchor.setTo(0.5, 0);
-            game.hotbar.addChild(text);
-        }
-        if (level.availTurrets.green_turret) {
-            var green_turret = level.add.sprite(30, 5, 'green_turret');
-            green_turret.scale = {x: 0.625, y: 0.625};
-            game.hotbar.addChild(green_turret);
-            var text = level.add.text(40, 33, '2', {font: '12px Arial'});
-            text.anchor.setTo(0.5, 0);
-            game.hotbar.addChild(text);           
-        }
+        game.addBulletProperties(blue_bullets, 'blue_bullet');
     };
 
     game.updateWorld = function(level, next_level_id) {
         var time = level.time.now;
-        var hot_turret = game.hotbar_crosswalk[0];
 
         // check pause button
         if (game.pause_button.input.pointerDown() || level.input.keyboard.isDown(80)) {
@@ -108,8 +123,8 @@ var definePropertyFunctions = function(game) {
 
         // check hotbar switch (keycode for 1 is 49)
         var checkHotbarKey = function(keynum) {
-            if (level.input.keyboard.isDown(keynum + 49) && game.hotbar_crosswalk[keynum]) {
-                hot_turret = game.hotbar_crosswalk[keynum];
+            if (level.input.keyboard.isDown(keynum + 49) && level.turrets[keynum]) {
+                level.hot_turret = level.turrets[keynum];
                 game.hotbar_select.x = 25*keynum + 4;
             }
         };
@@ -126,22 +141,52 @@ var definePropertyFunctions = function(game) {
             player.body.acceleration.x = 0;
         }
         
-        // turret building
-        if (cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
-            if (!hot_turret.beingConstructed) {
-                // start to build turret
-                hot_turret.beingConstructed = true;
-                turretTimer = time;
+        // check turret building
+       if (!level.inPostConstruct && cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
+            if (!level.constructing) {
+                if (game.money >= level.hot_turret.attr.cost) {
+                    // start to build turret
+                    level.constructing = true;
+                    level.turretTimer = time;
+
+                    var turret = level.hot_turret.getFirstExists(false);
+                    turret.beingConstructed = true;
+                    turret.reset(player.body.x + player.body.width/2, player.body.y + 30, turret.maxHealth); 
+                    level.hot_turret.constrTurret = turret;
+                } else {
+                    // cant afford that shit
+                }
             } else {
                 // check to see if done building turret
-                if (time >= turretTimer + hot_turret.attr.constructTime) {
-                    hot_turret.addToWorld();
-                    hot_turret.beingConstructed = false;
+                if (time >= level.turretTimer + level.hot_turret.attr.constructTime) {
+                    level.hot_turret.constrTurret.fireTimer = time;
+                    level.hot_turret.constrTurret.beingConstructed = false;
+                    level.constructing = false;
+                    level.inPostConstruct = true;
+                    game.money -= level.hot_turret.attr.cost;
+
+                    level.hot_turret.constrText.destroy();
+                } else {
+                    var perc_constr = (time - level.turretTimer) / level.hot_turret.attr.constructTime;
+                    /*level.hot_turret.constrTurret.crop({
+                        x: 0,
+                        y: (1 - perc_constr) * level.hot_turret.constrTurret.height,
+                        width: level.hot_turret.constrTurret.width,
+                        height: perc_constr * level.hot_turret.constrTurret.height
+                    });*/
+
+                    var constrText = game.add.text(0, 0, perc_constr.toFixed(2), {font: '14px Arial'});
+                    level.hot_turret.constrTurret.addChild(constrText);
+                    if (level.hot_turret.constrText) level.hot_turret.constrText.destroy();
+                    level.hot_turret.constrText = constrText;
                 }
             }
         } else {
-            creatingTurret = false;
-            hot_turret.beingConstructed = false;    
+            if (!cursors.down.isDown) level.inPostConstruct = false;
+            if (level.constructing) {
+                level.hot_turret.constrTurret.kill();
+                level.constructing = false;
+            }
         }
 
         // enemy firing
@@ -153,17 +198,21 @@ var definePropertyFunctions = function(game) {
         });
             
         // turrets firing
-        blue_turrets.forEachAlive(function(turret) {
-            if (time > turret.fireTimer + turret.fireFreq) {
-                turret.fireTimer = time;
-                turret.shoot();
-            }
-        }, level);
+        for (var i = 0; i < level.turrets.length; i++) {
+            level.turrets[i].forEachAlive(function(turret) {
+                if (!turret.beingConstructed && time > turret.fireTimer + turret.fireFreq) {
+                    turret.fireTimer = time;
+                    turret.shoot();
+                }
+            }, level);
+        }
         
         
         // check if bullet collided with anyone; callback function doesnt seem to be calling in order
         level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
-        level.physics.arcade.overlap(blue_turrets, red_bullets, game.bulletHit);
+        for (var i = 0; i < level.turrets.length; i++) {
+            level.physics.arcade.overlap(level.turrets[i], red_bullets, game.bulletHit);
+        }
         level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
 
         // check if game is over OR all enemies are dead
@@ -215,58 +264,6 @@ var definePropertyFunctions = function(game) {
         return spaceships;
     }
 
-    // ----------------------------- turrets ---------------------------------
-    game.addBlueTurrets = function(level) {
-        var group = level.add.group();
-        game.addTurretProperties(group, {
-            img_id: 'blue_turret',
-            constructTime: 2000,
-            fireFreq: 1500,
-            health: 3,
-            cost: 100           
-        });
-        return group;
-    };
-    game.addGreenTurrets = function(level) {
-        var group = level.add.group();
-        game.addTurretProperties(group, {
-            img_id: 'green_turret',
-            fireFreq: 1000,
-            health: 5,
-            cost: 150
-        });
-        return group;
-    };
-    game.addTurretProperties = function(group, attr) {
-        group.attr = {};
-        for (var ind in attr) group.attr[ind] = attr[ind];
-
-        group.enableBody = true;
-        group.physicsBodyType = Phaser.Physics.ARCADE;
-        group.createMultiple(30, attr.img_id);
-        group.setAll('anchor.x', 0.5);
-        group.setAll('anchor.y', 0.5);
-        group.addToWorld = function() {
-            if (game.buySomething(attr.cost)) {
-                var turret = group.getFirstExists(false);
-                turret.reset(player.body.x + player.body.width/2, player.body.y + 30, turret.maxHealth); 
-                turret.fireTimer = game.time.now;
-                return turret;
-            } else {
-                return false;
-            }
-        };
-        group.forEach(function(turret) {
-            game.addHealthBar(turret, attr.health);
-            turret.fireFreq = attr.fireFreq;
-            turret.shoot = function() {
-                var bullet = blue_bullets.getFirstExists(false);
-                bullet.reset(turret.body.x + turret.body.width/2, turret.body.y);
-                game.physics.arcade.moveToXY(bullet, turret.body.x + turret.body.width/2, 0, 100);            
-            };
-        }, this);               
-    };
-
 
     // ----------------------- group properties ------------------------------
     game.addHealthBar = function(sprite, num) {
@@ -276,6 +273,24 @@ var definePropertyFunctions = function(game) {
         sprite.health_bar = game.add.sprite(1, 1, 'health_bar');
         sprite.health_bar_container.addChild(sprite.health_bar);
         sprite.addChild(sprite.health_bar_container);
+    };
+    game.addTurretProperties = function(group, img_id) {
+        group.attr = game.turret_attr[img_id];
+
+        group.enableBody = true;
+        group.physicsBodyType = Phaser.Physics.ARCADE;
+        group.createMultiple(30, img_id);
+        group.setAll('anchor.x', 0.5);
+        group.setAll('anchor.y', 0.5);
+        group.forEach(function(turret) {
+            game.addHealthBar(turret, group.attr.health);
+            turret.fireFreq = group.attr.fireFreq;
+            turret.shoot = function() {
+                var bullet = blue_bullets.getFirstExists(false);
+                bullet.reset(turret.body.x + turret.body.width/2, turret.body.y);
+                game.physics.arcade.moveToXY(bullet, turret.body.x + turret.body.width/2, 0, 100);            
+            };
+        }, this);               
     };
     game.addBulletProperties = function(group, img_id) {
         group.enableBody = true;
