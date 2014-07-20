@@ -25,6 +25,7 @@ Game.Preloader.prototype = {
 
     	this.load.image('sky', 'img/clouds.png');
     	this.load.image('ground', 'img/grass.png');
+    	this.load.image('gem', 'img/gem.png');
 		this.load.image('spaceship', 'img/ufo.png');
 		this.load.image('red_bullet', 'img/red_shot.png');
 		this.load.image('blue_bullet', 'img/blue_shot.png');

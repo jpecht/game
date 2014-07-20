@@ -1,10 +1,13 @@
 var definePropertyFunctions = function(game) {
 
     // ----------------------------- constants -------------------------------
-    game.groundY = 500;
-    game.drag = 700;
-    game.player_maxSpeed = 200;
-    game.player_acceleration = 1000;
+    game.GROUND_Y = 500;
+    game.GRAVITY = 2600;
+    game.DRAG = 700;
+    game.PLAYER_SPEED = 200;
+    game.PLAYER_ACCELERATION = 1000;
+    game.PLAYER_JUMP_SPEED = -700;
+    
     game.money = 0;
 
     game.turret_attr = {
@@ -26,14 +29,15 @@ var definePropertyFunctions = function(game) {
     game.createWorld = function(level) {
         // start physics engine
         level.physics.startSystem(Phaser.Physics.ARCADE);
-        level.physics.arcade.checkCollision.down = false;
+        //level.physics.arcade.checkCollision.down = true;
+        level.physics.arcade.gravity.y = game.GRAVITY;
         
         // add setting
         level.add.sprite(0, 0, 'sky');
-        ground = level.add.sprite(0, game.groundY, 'ground');
-        level.physics.arcade.enable(ground);
-        ground.body.immovable = true;
-        ground.body.allowGravity = false;
+        level.ground = level.add.sprite(0, game.GROUND_Y, 'ground');
+        level.physics.arcade.enable(level.ground);
+        level.ground.body.immovable = true;
+        level.ground.body.allowGravity = false;
  
          // add hp display
         game.player_hp_display = this.add.text(5, 5, '', {font: '16px Arial'});  
@@ -60,12 +64,12 @@ var definePropertyFunctions = function(game) {
         game.hotbar.addChild(game.hotbar_select);
 
         // add player
-        player = level.add.sprite(level.world.centerX, game.groundY, 'guy');
+        player = level.add.sprite(level.world.centerX, game.GROUND_Y-50, 'guy');
         level.physics.arcade.enable(player);        
         player.anchor.setTo(0.5, 0.5);
         player.body.collideWorldBounds = true;
-        player.body.maxVelocity.setTo(game.player_maxSpeed, game.player_maxSpeed);
-        player.body.drag.setTo(game.drag, 0);
+        player.body.maxVelocity.setTo(game.PLAYER_SPEED, game.PLAYER_SPEED * 10);
+        player.body.drag.setTo(game.DRAG, 0);
         player.maxHealth = 5;
         player.health = 5;
         game.addHealthBar(player, 5);
@@ -109,6 +113,19 @@ var definePropertyFunctions = function(game) {
         blue_bullets = level.add.group();
         game.addBulletProperties(red_bullets, 'red_bullet');
         game.addBulletProperties(blue_bullets, 'blue_bullet');
+
+
+        // add gems
+        gems = level.add.group();
+        gems.enableBody = true;
+        gems.physicsBodyType = Phaser.Physics.ARCADE;
+        gems.createMultiple(30, 'gem');
+        gems.setAll('anchor.x', 0.5);
+        gems.setAll('anchor.y', 0.5);
+        gems.setAll('body.allowGravity', false);
+
+        gem = gems.getFirstExists(false);
+        gem.reset(level.world.randomX, 370);
     };
 
     game.updateWorld = function(level, next_level_id) {
@@ -134,12 +151,31 @@ var definePropertyFunctions = function(game) {
         // update player movement
         cursors = level.input.keyboard.createCursorKeys();   
         if (cursors.left.isDown) {
-            player.body.acceleration.x = -game.player_acceleration;  
+            player.body.acceleration.x = -game.PLAYER_ACCELERATION;  
         } else if (cursors.right.isDown) {
-            player.body.acceleration.x = game.player_acceleration;
+            player.body.acceleration.x = game.PLAYER_ACCELERATION;
         } else {
             player.body.acceleration.x = 0;
         }
+
+        // jumping; double jump and variable jump (variable doesnt seem to work)
+        var isGrounded = player.body.onFloor();
+        if (isGrounded) level.canDoubleJump = true;
+        if (level.input.keyboard.justPressed(Phaser.Keyboard.UP, 5)) {
+            if (level.canDoubleJump) level.canVariableJump = true;
+
+            if (level.canDoubleJump || isGrounded) {
+                player.body.velocity.y = game.PLAYER_JUMP_SPEED;
+                if (!isGrounded) level.canDoubleJump = false;
+            } 
+        }
+        if (level.canVariableJump && level.input.keyboard.justPressed(Phaser.Keyboard.UP, 150)) {
+            player.body.velocity.y = game.PLAYER_JUMP_SPEED;
+        }
+        if (!level.input.keyboard.justPressed(Phaser.Keyboard.UP)) {
+            level.canVariableJump = false;
+        }
+
         
         // check turret building
        if (!level.inPostConstruct && cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
@@ -151,7 +187,7 @@ var definePropertyFunctions = function(game) {
 
                     var turret = level.hot_turret.getFirstExists(false);
                     turret.beingConstructed = true;
-                    turret.reset(player.body.x + player.body.width/2, player.body.y + 30, turret.maxHealth); 
+                    turret.reset(player.body.x + player.body.width/2, 0, turret.maxHealth); 
                     level.hot_turret.constrTurret = turret;
                 } else {
                     // cant afford that shit
@@ -208,12 +244,15 @@ var definePropertyFunctions = function(game) {
         }
         
         
-        // check if bullet collided with anyone; callback function doesnt seem to be calling in order
+        // collisions
+        //level.physics.arcade.collide(player, level.ground);
         level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
+        level.physics.arcade.overlap(gems, player, game.gotGem);
+        level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
         for (var i = 0; i < level.turrets.length; i++) {
+            level.physics.arcade.collide(level.turrets[i], level.ground);
             level.physics.arcade.overlap(level.turrets[i], red_bullets, game.bulletHit);
         }
-        level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
 
         // check if game is over OR all enemies are dead
         if (level.nextLevelTimer && time > level.nextLevelTimer + 2000) {
@@ -235,6 +274,8 @@ var definePropertyFunctions = function(game) {
 
     // ----------------------------- enemies ---------------------------------
     game.addSpaceships = function(level, num) {
+        // need to prevent spaceships from overlapping with each other
+        // also need to make firing bullets more random
         spaceships = level.add.group();
         spaceships.enableBody = true;
         spaceships.physicsBodyType = Phaser.Physics.ARCADE;
@@ -259,6 +300,7 @@ var definePropertyFunctions = function(game) {
             var spaceship = spaceships.getFirstExists(false);
             spaceship.reset(level.world.randomX, 150, spaceship.maxHealth);
             spaceship.body.velocity.x = 100;
+            spaceship.body.allowGravity = false;
             spaceship.fireTimer = game.time.now;
         }
         return spaceships;
@@ -300,6 +342,7 @@ var definePropertyFunctions = function(game) {
         group.setAll('anchor.y', 1);
         group.setAll('outOfBoundsKill', true);
         group.setAll('checkWorldBounds', true);
+        group.setAll('body.allowGravity', false);
     };
 
 
@@ -323,7 +366,11 @@ var definePropertyFunctions = function(game) {
             }
         }
     };
-
+    game.gotGem = function(player, gem) {
+        gem.kill();
+        game.money += 100;
+        game.money_display.setText('$' + game.money);
+    }
 
     // -------------------------- miscellaneous ------------------------------
     game.buySomething = function(cost) {
