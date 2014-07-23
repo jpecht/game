@@ -8,6 +8,9 @@ var definePropertyFunctions = function(game) {
     game.PLAYER_ACCELERATION = 1000;
     game.PLAYER_JUMP_SPEED = -700;
     
+    game.TURRET_BUFFER_TIME = 400;
+    game.TURRET_MAX_SPEED = 50;
+    
     game.money = 0;
 
     game.turret_attr = {
@@ -193,16 +196,7 @@ var definePropertyFunctions = function(game) {
         } else if (player.breath < player.maxBreath) {
             player.breath++;
         }
-        var obj = {
-            x: 0,
-            y: 0, 
-            width: 30 * player.breath / player.maxBreath,
-            height: 4
-        };
-        //console.log(obj);
-        //console.log(player.breath);
-        if (obj.width < 31) player.water_bar.crop(obj);
-
+        player.water_bar.crop({x: 0, y: 0, width: 30 * player.breath / player.maxBreath, height: 4});
 
         // jumping; double jump and variable jump (variable doesnt seem to work)
         var isGrounded = player.body.onFloor();
@@ -234,38 +228,41 @@ var definePropertyFunctions = function(game) {
         // check turret building
         if (!level.inPostConstruct && cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
             if (!level.constructing) {
-                if (game.money >= level.hot_turret.attr.cost) {
-                    game.updateMoney(-level.hot_turret.attr.cost);
-
-                    // start to build turret
-                    level.constructing = true;
-                    level.turretTimer = time;
-
-                    var turret = level.hot_turret.getFirstExists(false);
-                    turret.beingConstructed = true;
-                    turret.reset(player.body.x + player.body.width/2, 0, turret.maxHealth); 
-                    level.hot_turret.constrTurret = turret;
+                if (!level.inBuffer) {
+                    // start buffer stage
+                    if (game.money >= level.hot_turret.attr.cost) {
+                        level.turretTimer = time;
+                        level.inBuffer = true;
+                    } else {
+                        game.notEnoughMoney();
+                    }                    
                 } else {
-                    game.notEnoughMoney();
+                    if (time >= level.turretTimer + game.TURRET_BUFFER_TIME) {
+                        // start building turret
+                        level.inBuffer = false;
+                        level.constructing = true;
+                        game.updateMoney(-level.hot_turret.attr.cost);
+
+                        var turret = level.hot_turret.getFirstExists(false);
+                        turret.beingConstructed = true;
+                        turret.reset(player.body.x + player.body.width/2, 0, turret.maxHealth);
+                        turret.birthTime = null;
+                        level.hot_turret.constrTurret = turret;
+                    }
                 }
             } else {
-                // check to see if done building turret
-                if (time >= level.turretTimer + level.hot_turret.attr.constructTime) {
-                    level.hot_turret.constrTurret.fireTimer = time;
-                    level.hot_turret.constrTurret.beingConstructed = false;
+                if (time >= level.turretTimer + level.hot_turret.attr.constructTime + game.TURRET_BUFFER_TIME) {
+                    // done building turret
                     level.constructing = false;
                     level.inPostConstruct = true;
+                    level.hot_turret.constrTurret.beingConstructed = false;
+                    level.hot_turret.constrTurret.fireTimer = time;
+                    level.hot_turret.constrTurret.birthTime = time;
 
                     level.hot_turret.constrText.destroy();
                 } else {
-                    var perc_constr = (time - level.turretTimer) / level.hot_turret.attr.constructTime;
-                    /*level.hot_turret.constrTurret.crop({
-                        x: 0,
-                        y: (1 - perc_constr) * level.hot_turret.constrTurret.height,
-                        width: level.hot_turret.constrTurret.width,
-                        height: perc_constr * level.hot_turret.constrTurret.height
-                    });*/
-
+                    // building turret
+                    var perc_constr = (time - level.turretTimer - game.TURRET_BUFFER_TIME) / level.hot_turret.attr.constructTime;
                     var constrText = game.add.text(0, 0, perc_constr.toFixed(2), {font: '14px Arial'});
                     level.hot_turret.constrTurret.addChild(constrText);
                     if (level.hot_turret.constrText) level.hot_turret.constrText.destroy();
@@ -273,10 +270,11 @@ var definePropertyFunctions = function(game) {
                 }
             }
         } else {
+            level.inBuffer = false;
             if (!cursors.down.isDown) level.inPostConstruct = false;
             if (level.constructing) {
-                level.hot_turret.constrTurret.kill();
                 level.constructing = false;
+                level.hot_turret.constrTurret.kill();
             }
         }
 
@@ -304,16 +302,21 @@ var definePropertyFunctions = function(game) {
         level.physics.arcade.overlap(red_bullets, level.ground, function(bullet) {
             bullet.kill();
         });
-        for (var i = 0; i < level.bullets.length; i++) {
+        /*for (var i = 0; i < level.bullets.length; i++) {
             level.physics.arcade.overlap(level.bullets[i], player, game.bulletHit);
-        }
+        }*/
+        level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
         level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
         for (var i = 0; i < level.turrets.length; i++) {
+            level.physics.arcade.collide(level.turrets[i], player);
             level.physics.arcade.collide(level.turrets[i], level.ground);
             level.physics.arcade.overlap(level.turrets[i], red_bullets, game.bulletHit);
             level.physics.arcade.overlap(level.turrets[i], spaceships, function(turret) {
                 turret.kill();
             });
+            for (var j = i; j < level.turrets.length; j++) {
+                level.physics.arcade.collide(level.turrets[i], level.turrets[j], game.turretCollision);
+            }
         }
 
         level.physics.arcade.overlap(gems, player, game.gotGem);
@@ -389,6 +392,10 @@ var definePropertyFunctions = function(game) {
         group.setAll('anchor.x', 0.5);
         group.setAll('anchor.y', 0.5);
         group.forEach(function(turret) {
+            turret.body.collideWorldBounds = true;
+            turret.body.maxVelocity.setTo(game.TURRET_MAX_SPEED, game.PLAYER_SPEED * 10);
+            turret.body.drag.setTo(game.DRAG, 0);
+ 
             game.addHealthBar(turret, group.attr.health);
             turret.fireFreq = group.attr.fireFreq;
             turret.shoot = function() {
@@ -430,6 +437,11 @@ var definePropertyFunctions = function(game) {
             }
         }
     };
+    game.turretCollision = function(turret1, turret2) {
+        if (turret1.birthTime === null) turret2.kill();
+        else if (turret2.birthTime === null) turret1.kill();
+    }
+
     game.gotGem = function(player, gem) {
         gem.kill();
         game.updateMoney(10);
