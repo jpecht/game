@@ -54,7 +54,7 @@ Game.PickClass.prototype = {
 
             var health = this.add.text(50, 90, 'Health: ' + sprite.stats.hp, {font: '14px Arial'});
             var speed = this.add.text(50, 105, 'Speed: ' + sprite.stats.speed, {font: '14px Arial'});
-            var build_speed = this.add.text(50, 120, 'Build Speed: ' + 1/sprite.stats.build_speed_mod, {font: '14px Arial'});
+            var build_speed = this.add.text(50, 120, 'Build Speed: ' + (200-sprite.stats.build_speed_mod), {font: '14px Arial'});
             var price_mod = this.add.text(50, 135, 'Price Modifier: ' + sprite.stats.price_mod, {font: '14px Arial'});
             sprite.addChild(health);
             sprite.addChild(speed);

@@ -298,7 +298,7 @@ var definePropertyFunctions = function(game) {
         
         
         // collisions
-        //level.physics.arcade.collide(player, level.ground);
+        level.physics.arcade.collide(player, level.ground);
         level.physics.arcade.overlap(red_bullets, level.ground, function(bullet) {
             bullet.kill();
         });
@@ -308,7 +308,14 @@ var definePropertyFunctions = function(game) {
         level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
         level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
         for (var i = 0; i < level.turrets.length; i++) {
-            level.physics.arcade.collide(level.turrets[i], player);
+            level.physics.arcade.collide(level.turrets[i], player, function(player, turret) {
+                if (turret.beingConstructed) {
+                    player.kill();
+                    setTimeout(function() {
+                        game.state.start('GameOver');
+                    }, 4000);
+                }
+            });
             level.physics.arcade.collide(level.turrets[i], level.ground);
             level.physics.arcade.overlap(level.turrets[i], red_bullets, game.bulletHit);
             level.physics.arcade.overlap(level.turrets[i], spaceships, function(turret) {
