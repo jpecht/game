@@ -5,6 +5,7 @@ Game.Level1 = function(game) {
     	'green_turret': true
     };
     this.num_spaceships = 2;
+    this.gem_frequency = 5000;
 };
 
 Game.Level1.prototype = {

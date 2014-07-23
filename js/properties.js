@@ -2,7 +2,7 @@ var definePropertyFunctions = function(game) {
 
     // ----------------------------- constants -------------------------------
     game.GROUND_Y = 500;
-    game.GRAVITY = 2600;
+    game.GRAVITY = 2400;
     game.DRAG = 700;
     game.PLAYER_SPEED = 200;
     game.PLAYER_ACCELERATION = 1000;
@@ -34,11 +34,27 @@ var definePropertyFunctions = function(game) {
         
         // add setting
         level.add.sprite(0, 0, 'sky');
-        level.ground = level.add.sprite(0, game.GROUND_Y, 'ground');
-        level.physics.arcade.enable(level.ground);
-        level.ground.body.immovable = true;
-        level.ground.body.allowGravity = false;
- 
+        level.ground = game.add.group();
+
+        var addGroundBlock = function(x, y, img_id) {
+            var groundBlock = level.add.sprite(x, y, img_id);
+            level.physics.arcade.enable(groundBlock);
+            groundBlock.body.immovable = true;
+            groundBlock.body.allowGravity = false;
+            level.ground.add(groundBlock); 
+        }
+
+        for (var i = 0; i < game.width/40; i++) {
+            if (i !== 4 && i !== 16) {
+                addGroundBlock(40*i, game.GROUND_Y, 'grass');
+                addGroundBlock(40*i, game.GROUND_Y + 20, 'ground');
+            }
+            for (var j = 0; j < 2; j++) {
+                if (i < 4 || i > 16) addGroundBlock(40*i, game.GROUND_Y + 40 + 20*j, 'ground');
+            }
+            addGroundBlock(40*i, game.GROUND_Y + 80, 'ground');
+        }
+
          // add hp display
         game.player_hp_display = this.add.text(5, 5, '', {font: '16px Arial'});  
 
@@ -59,7 +75,7 @@ var definePropertyFunctions = function(game) {
 
 
         // add hotbar
-        game.hotbar = level.add.sprite(50, game.height - 60, 'hotbar');
+        game.hotbar = level.add.sprite(20, game.height - 60, 'hotbar');
         game.hotbar_select = level.add.sprite(4, 4, 'hotbar_select');
         game.hotbar.addChild(game.hotbar_select);
 
@@ -74,6 +90,14 @@ var definePropertyFunctions = function(game) {
         player.health = 5;
         game.addHealthBar(player, 5);
         game.player_hp_display.setText(player.health);
+
+        player.water_bar_container = game.add.sprite(-16, -19, 'health_bar_container');
+        player.water_bar = game.add.sprite(1, 1, 'water_bar');
+        player.water_bar_container.addChild(player.water_bar);
+        player.addChild(player.water_bar_container);
+        player.maxBreath = 1000;
+        player.breath = player.maxBreath;
+
 
         // add spaceships
         spaceships = game.addSpaceships(level, level.num_spaceships);
@@ -113,6 +137,7 @@ var definePropertyFunctions = function(game) {
         blue_bullets = level.add.group();
         game.addBulletProperties(red_bullets, 'red_bullet');
         game.addBulletProperties(blue_bullets, 'blue_bullet');
+        level.bullets = [red_bullets, blue_bullets];
 
 
         // add gems
@@ -124,8 +149,7 @@ var definePropertyFunctions = function(game) {
         gems.setAll('anchor.y', 0.5);
         gems.setAll('body.allowGravity', false);
 
-        gem = gems.getFirstExists(false);
-        gem.reset(level.world.randomX, 370);
+        level.gemTimer = level.time.now;
     };
 
     game.updateWorld = function(level, next_level_id) {
@@ -158,6 +182,28 @@ var definePropertyFunctions = function(game) {
             player.body.acceleration.x = 0;
         }
 
+        // check player breath
+        if (player.body.y < game.GROUND_Y) {
+            player.breath--;
+            if (player.breath <= 0) {
+                // game over technically
+                console.log('out of breath');
+                game.state.start('GameOver');
+            }
+        } else if (player.breath < player.maxBreath) {
+            player.breath++;
+        }
+        var obj = {
+            x: 0,
+            y: 0, 
+            width: 30 * player.breath / player.maxBreath,
+            height: 4
+        };
+        //console.log(obj);
+        //console.log(player.breath);
+        if (obj.width < 31) player.water_bar.crop(obj);
+
+
         // jumping; double jump and variable jump (variable doesnt seem to work)
         var isGrounded = player.body.onFloor();
         if (isGrounded) level.canDoubleJump = true;
@@ -176,11 +222,21 @@ var definePropertyFunctions = function(game) {
             level.canVariableJump = false;
         }
 
+
+        // spawn gems
+        if (time >= level.gemTimer + level.gem_frequency) {
+            var gem = gems.getFirstExists(false);
+            gem.reset(10+(level.world.width-20)*Math.random(), 330 + 60*Math.random());
+            level.gemTimer = time;
+        }
+
         
         // check turret building
-       if (!level.inPostConstruct && cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
+        if (!level.inPostConstruct && cursors.down.isDown && !cursors.left.isDown && !cursors.right.isDown) {
             if (!level.constructing) {
                 if (game.money >= level.hot_turret.attr.cost) {
+                    game.updateMoney(-level.hot_turret.attr.cost);
+
                     // start to build turret
                     level.constructing = true;
                     level.turretTimer = time;
@@ -190,7 +246,7 @@ var definePropertyFunctions = function(game) {
                     turret.reset(player.body.x + player.body.width/2, 0, turret.maxHealth); 
                     level.hot_turret.constrTurret = turret;
                 } else {
-                    // cant afford that shit
+                    game.notEnoughMoney();
                 }
             } else {
                 // check to see if done building turret
@@ -199,7 +255,6 @@ var definePropertyFunctions = function(game) {
                     level.hot_turret.constrTurret.beingConstructed = false;
                     level.constructing = false;
                     level.inPostConstruct = true;
-                    game.money -= level.hot_turret.attr.cost;
 
                     level.hot_turret.constrText.destroy();
                 } else {
@@ -246,13 +301,22 @@ var definePropertyFunctions = function(game) {
         
         // collisions
         //level.physics.arcade.collide(player, level.ground);
-        level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
-        level.physics.arcade.overlap(gems, player, game.gotGem);
+        level.physics.arcade.overlap(red_bullets, level.ground, function(bullet) {
+            bullet.kill();
+        });
+        for (var i = 0; i < level.bullets.length; i++) {
+            level.physics.arcade.overlap(level.bullets[i], player, game.bulletHit);
+        }
         level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
         for (var i = 0; i < level.turrets.length; i++) {
             level.physics.arcade.collide(level.turrets[i], level.ground);
             level.physics.arcade.overlap(level.turrets[i], red_bullets, game.bulletHit);
+            level.physics.arcade.overlap(level.turrets[i], spaceships, function(turret) {
+                turret.kill();
+            });
         }
+
+        level.physics.arcade.overlap(gems, player, game.gotGem);
 
         // check if game is over OR all enemies are dead
         if (level.nextLevelTimer && time > level.nextLevelTimer + 2000) {
@@ -354,33 +418,29 @@ var definePropertyFunctions = function(game) {
             hitee.health_bar.crop({
                 x: 0,
                 y: 0, 
-                width: 32 * hitee.health / hitee.maxHealth,
-                height: hitee.health_bar.height
+                width: 30 * hitee.health / hitee.maxHealth,
+                height: 4
             });
         }
         
         if (hitee == player) {
             game.player_hp_display.setText(player.health);
             if (player.health <= 0) {
-                game.state.start('GameOver'); // need to test; might only work as level.state.start
+                game.state.start('GameOver');
             }
         }
     };
     game.gotGem = function(player, gem) {
         gem.kill();
-        game.money += 100;
-        game.money_display.setText('$' + game.money);
+        game.updateMoney(10);
     }
 
     // -------------------------- miscellaneous ------------------------------
-    game.buySomething = function(cost) {
-        if (game.money >= cost) {
-            game.money -= cost;
-            if (game.money_display) game.money_display.setText('$' + game.money);
-            return true;
-        } else {
-            // add "Need More Money" popup
-            return false;
-        }
+    game.updateMoney = function(dm) {
+        game.money += dm;
+        if (game.money_display) game.money_display.setText('$' + game.money);
+    }
+    game.notEnoughMoney = function() {
+        // display on screen "not enough money"
     }
 }

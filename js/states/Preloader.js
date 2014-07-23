@@ -24,7 +24,8 @@ Game.Preloader.prototype = {
 		this.load.image('class_merchant', 'img/merchant.png');
 
     	this.load.image('sky', 'img/clouds.png');
-    	this.load.image('ground', 'img/grass.png');
+    	this.load.image('grass', 'img/grass.png');
+    	this.load.image('ground', 'img/ground.png');
     	this.load.image('gem', 'img/gem.png');
 		this.load.image('spaceship', 'img/ufo.png');
 		this.load.image('red_bullet', 'img/red_shot.png');
@@ -38,6 +39,7 @@ Game.Preloader.prototype = {
         this.load.image('hotbar_select', 'img/hotbar_select.png');
         this.load.image('health_bar', 'img/health_bar.png');
         this.load.image('health_bar_container', 'img/health_bar_container.png');
+        this.load.image('water_bar', 'img/water_bar.png');
 
 	},
 
