@@ -157,6 +157,7 @@ var definePropertyFunctions = function(game) {
 
     game.updateWorld = function(level, next_level_id) {
         var time = level.time.now;
+        level.physics.arcade.collide(player, level.ground);
 
         // check pause button
         if (game.pause_button.input.pointerDown() || level.input.keyboard.isDown(80)) {
@@ -199,7 +200,7 @@ var definePropertyFunctions = function(game) {
         player.water_bar.crop({x: 0, y: 0, width: 30 * player.breath / player.maxBreath, height: 4});
 
         // jumping; double jump and variable jump (variable doesnt seem to work)
-        var isGrounded = player.body.onFloor();
+        var isGrounded = player.body.touching.down;
         if (isGrounded) level.canDoubleJump = true;
         if (level.input.keyboard.justPressed(Phaser.Keyboard.UP, 5)) {
             if (level.canDoubleJump) level.canVariableJump = true;
@@ -298,7 +299,6 @@ var definePropertyFunctions = function(game) {
         
         
         // collisions
-        level.physics.arcade.collide(player, level.ground);
         level.physics.arcade.overlap(red_bullets, level.ground, function(bullet) {
             bullet.kill();
         });
