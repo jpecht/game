@@ -75,12 +75,17 @@ Game.PickClass.prototype = {
             var sprite = this.player_classes[i];
             if (sprite.input.pointerDown()) {
                 //this.music.stop();
+
+                this.game.stats = {};
+                for (var ind in sprite.stats) this.game.stats[ind] = sprite.stats[ind];
+
                 this.state.start('Level1');
             } else if (sprite.input.pointerOver()) {
                 sprite.alpha = 1;
             } else if (sprite.input.pointerOut()) {
                 sprite.alpha = 0.5;
             }
+
         }
 	}
 };

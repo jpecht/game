@@ -4,9 +4,8 @@ var definePropertyFunctions = function(game) {
     game.GROUND_Y = 500;
     game.GRAVITY = 2400;
     game.DRAG = 700;
-    game.PLAYER_SPEED = 200;
     game.PLAYER_ACCELERATION = 1000;
-    game.PLAYER_JUMP_SPEED = -700;
+    game.PLAYER_JUMP_SPEED = -600;
     
     game.TURRET_BUFFER_TIME = 400;
     game.TURRET_MAX_SPEED = 50;
@@ -30,13 +29,15 @@ var definePropertyFunctions = function(game) {
 
     // ------------------------- create and update ---------------------------
     game.createWorld = function(level) {
+        var time = game.time.now;
+
         // start physics engine
         level.physics.startSystem(Phaser.Physics.ARCADE);
         //level.physics.arcade.checkCollision.down = true;
         level.physics.arcade.gravity.y = game.GRAVITY;
         
         // add setting
-        level.add.sprite(0, 0, 'sky');
+        level.add.sprite(0, game.GROUND_Y-game.height, 'sky');
         level.ground = game.add.group();
 
         var addGroundBlock = function(x, y, img_id) {
@@ -67,6 +68,12 @@ var definePropertyFunctions = function(game) {
             font: '16px Arial',
             fill: 'green'
         });
+        // add breath display
+        game.breath_display = this.add.text(5, 55, '', {
+            font: '16px Arial',
+            fill: 'blue'
+        });
+        game.breath_display.blinkTimer = time;
 
 
         // add pause button
@@ -87,11 +94,9 @@ var definePropertyFunctions = function(game) {
         level.physics.arcade.enable(player);        
         player.anchor.setTo(0.5, 0.5);
         player.body.collideWorldBounds = true;
-        player.body.maxVelocity.setTo(game.PLAYER_SPEED, game.PLAYER_SPEED * 10);
+        player.body.maxVelocity.setTo(game.stats.speed, game.stats.speed * 10);
         player.body.drag.setTo(game.DRAG, 0);
-        player.maxHealth = 5;
-        player.health = 5;
-        game.addHealthBar(player, 5);
+        game.addHealthBar(player, game.stats.hp);
         game.player_hp_display.setText(player.health);
 
         player.water_bar_container = game.add.sprite(-16, -19, 'health_bar_container');
@@ -133,6 +138,10 @@ var definePropertyFunctions = function(game) {
             green_turrets = addTurret(1, 'green_turret');
             level.turrets[1] = green_turrets;
         }
+
+        for (var i = 0; i < level.turrets.length; i++) {
+            level.turrets[i].attr.constructTime *= game.stats.build_speed_mod/100;
+        }
  
 
         // add bullets
@@ -152,12 +161,51 @@ var definePropertyFunctions = function(game) {
         gems.setAll('anchor.y', 0.5);
         gems.setAll('body.allowGravity', false);
 
-        level.gemTimer = level.time.now;
+        level.gemTimer = time;
+
+
+        // Show FPS
+        game.time.advancedTiming = true;
+        game.fpsText = game.add.text(5, 100, '', {font: '16px Arial'});
     };
 
     game.updateWorld = function(level, next_level_id) {
+        if (game.time.fps !== 0) {
+            game.fpsText.setText(game.time.fps + ' FPS');
+        }
+
         var time = level.time.now;
+
+        // collisions
         level.physics.arcade.collide(player, level.ground);
+        level.physics.arcade.overlap(red_bullets, level.ground, function(bullet) {
+            bullet.kill();
+        });
+        /*for (var i = 0; i < level.bullets.length; i++) {
+            level.physics.arcade.overlap(level.bullets[i], player, game.bulletHit);
+        }*/
+        level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
+        level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
+        for (var i = 0; i < level.turrets.length; i++) {
+            level.physics.arcade.collide(level.turrets[i], player, function(player, turret) {
+                if (turret.beingConstructed) {
+                    player.kill();
+                    setTimeout(function() {
+                        game.state.start('GameOver');
+                    }, 4000);
+                }
+            });
+            level.physics.arcade.collide(level.turrets[i], level.ground);
+            level.physics.arcade.overlap(level.turrets[i], red_bullets, game.bulletHit);
+            level.physics.arcade.overlap(level.turrets[i], spaceships, function(turret) {
+                turret.kill();
+            });
+            for (var j = i; j < level.turrets.length; j++) {
+                level.physics.arcade.collide(level.turrets[i], level.turrets[j], game.turretCollision);
+            }
+        }
+
+        level.physics.arcade.overlap(gems, player, game.gotGem);
 
         // check pause button
         if (game.pause_button.input.pointerDown() || level.input.keyboard.isDown(80)) {
@@ -198,6 +246,21 @@ var definePropertyFunctions = function(game) {
             player.breath++;
         }
         player.water_bar.crop({x: 0, y: 0, width: 30 * player.breath / player.maxBreath, height: 4});
+        game.breath_display.setText(player.breath);
+        if (player.breath <= 250) {
+            if (time >= game.breath_display.blinkTimer + 500) {
+                if (game.breath_display.isBig) {
+                    game.breath_display.setStyle({font: '20px Arial', fill: 'red'});
+                    game.breath_display.isBig = false;
+                } else {
+                    game.breath_display.setStyle({font: '16px Arial', fill: 'red'});
+                    game.breath_display.isBig = true;
+                }
+                game.breath_display.blinkTimer = time;
+            }
+        } else {
+            game.breath_display.setStyle({font: '16px Arial', fill: 'blue'})
+        }
 
         // jumping; double jump and variable jump (variable doesnt seem to work)
         var isGrounded = player.body.touching.down;
@@ -221,7 +284,7 @@ var definePropertyFunctions = function(game) {
         // spawn gems
         if (time >= level.gemTimer + level.gem_frequency) {
             var gem = gems.getFirstExists(false);
-            gem.reset(10+(level.world.width-20)*Math.random(), 330 + 60*Math.random());
+            gem.reset(10+(level.world.width-20)*Math.random(), 320 + 60*Math.random());
             level.gemTimer = time;
         }
 
@@ -242,7 +305,7 @@ var definePropertyFunctions = function(game) {
                         // start building turret
                         level.inBuffer = false;
                         level.constructing = true;
-                        game.updateMoney(-level.hot_turret.attr.cost);
+                        game.updateMoney(-level.hot_turret.attr.cost*game.stats.price_mod/100);
 
                         var turret = level.hot_turret.getFirstExists(false);
                         turret.beingConstructed = true;
@@ -252,7 +315,7 @@ var definePropertyFunctions = function(game) {
                     }
                 }
             } else {
-                if (time >= level.turretTimer + level.hot_turret.attr.constructTime + game.TURRET_BUFFER_TIME) {
+                if (time >= level.turretTimer+ game.TURRET_BUFFER_TIME + level.hot_turret.attr.constructTime) {
                     // done building turret
                     level.constructing = false;
                     level.inPostConstruct = true;
@@ -297,37 +360,7 @@ var definePropertyFunctions = function(game) {
             }, level);
         }
         
-        
-        // collisions
-        level.physics.arcade.overlap(red_bullets, level.ground, function(bullet) {
-            bullet.kill();
-        });
-        /*for (var i = 0; i < level.bullets.length; i++) {
-            level.physics.arcade.overlap(level.bullets[i], player, game.bulletHit);
-        }*/
-        level.physics.arcade.overlap(red_bullets, player, game.bulletHit);
-        level.physics.arcade.overlap(spaceships, blue_bullets, game.bulletHit);
-        for (var i = 0; i < level.turrets.length; i++) {
-            level.physics.arcade.collide(level.turrets[i], player, function(player, turret) {
-                if (turret.beingConstructed) {
-                    player.kill();
-                    setTimeout(function() {
-                        game.state.start('GameOver');
-                    }, 4000);
-                }
-            });
-            level.physics.arcade.collide(level.turrets[i], level.ground);
-            level.physics.arcade.overlap(level.turrets[i], red_bullets, game.bulletHit);
-            level.physics.arcade.overlap(level.turrets[i], spaceships, function(turret) {
-                turret.kill();
-            });
-            for (var j = i; j < level.turrets.length; j++) {
-                level.physics.arcade.collide(level.turrets[i], level.turrets[j], game.turretCollision);
-            }
-        }
-
-        level.physics.arcade.overlap(gems, player, game.gotGem);
-
+    
         // check if game is over OR all enemies are dead
         if (level.nextLevelTimer && time > level.nextLevelTimer + 2000) {
             level.state.start(next_level_id);
@@ -373,7 +406,7 @@ var definePropertyFunctions = function(game) {
         for (var i = 0; i < num; i++) {
             var spaceship = spaceships.getFirstExists(false);
             spaceship.reset(level.world.randomX, 150, spaceship.maxHealth);
-            spaceship.body.velocity.x = 100;
+            spaceship.body.velocity.x = 80 + 40*Math.random();
             spaceship.body.allowGravity = false;
             spaceship.fireTimer = game.time.now;
         }
@@ -400,7 +433,7 @@ var definePropertyFunctions = function(game) {
         group.setAll('anchor.y', 0.5);
         group.forEach(function(turret) {
             turret.body.collideWorldBounds = true;
-            turret.body.maxVelocity.setTo(game.TURRET_MAX_SPEED, game.PLAYER_SPEED * 10);
+            turret.body.maxVelocity.setTo(game.TURRET_MAX_SPEED, 1000);
             turret.body.drag.setTo(game.DRAG, 0);
  
             game.addHealthBar(turret, group.attr.health);

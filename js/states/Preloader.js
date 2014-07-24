@@ -32,6 +32,7 @@ Game.Preloader.prototype = {
 		this.load.image('blue_bullet', 'img/blue_shot.png');
 		this.load.image('blue_turret', 'img/blue_turret.png');
 		this.load.image('green_turret', 'img/green_turret.png');
+
         this.load.image('guy', 'img/guy.png');
         //this.load.atlas('playersheet', 'img/playersheet.png', 'img/playersheet.json');
 
