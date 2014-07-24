@@ -19,12 +19,12 @@ Game.Level1.prototype = {
 };
 
 Game.Level2 = function(game) {
-    this.start_money = 300;
+    this.start_money = 500;
     this.availTurrets = {
     	'blue_turret': true,
     	'green_turret': true
     };
-     this.num_spaceships = 2;
+     this.num_spaceships = 3;
 };
 
 Game.Level2.prototype = {

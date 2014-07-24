@@ -11,6 +11,8 @@ var definePropertyFunctions = function(game) {
     game.TURRET_MAX_SPEED = 50;
     
     game.money = 0;
+    game.xp = 0;
+    game.player_level = 1;
 
     game.turret_attr = {
         'blue_turret': {
@@ -23,119 +25,33 @@ var definePropertyFunctions = function(game) {
             constructTime: 2000,
             fireFreq: 1000,
             health: 3,
-            cost: 150
+            cost: 200
         }
     };
 
     // ------------------------- create and update ---------------------------
     game.createWorld = function(level) {
         var time = game.time.now;
+        game.money += level.start_money;
 
         // start physics engine
         level.physics.startSystem(Phaser.Physics.ARCADE);
         //level.physics.arcade.checkCollision.down = true;
         level.physics.arcade.gravity.y = game.GRAVITY;
         
-        // add setting
-        level.add.sprite(0, game.GROUND_Y-game.height, 'sky');
-        level.ground = game.add.group();
-
-        var addGroundBlock = function(x, y, img_id) {
-            var groundBlock = level.add.sprite(x, y, img_id);
-            level.physics.arcade.enable(groundBlock);
-            groundBlock.body.immovable = true;
-            groundBlock.body.allowGravity = false;
-            level.ground.add(groundBlock); 
-        }
-
-        for (var i = 0; i < game.width/40; i++) {
-            if (i !== 4 && i !== 16) {
-                addGroundBlock(40*i, game.GROUND_Y, 'grass');
-                addGroundBlock(40*i, game.GROUND_Y + 20, 'ground');
-            }
-            for (var j = 0; j < 2; j++) {
-                if (i < 4 || i > 16) addGroundBlock(40*i, game.GROUND_Y + 40 + 20*j, 'ground');
-            }
-            addGroundBlock(40*i, game.GROUND_Y + 80, 'ground');
-        }
-
-         // add hp display
-        game.player_hp_display = this.add.text(5, 5, '', {font: '16px Arial'});  
-
-        // add money display
-        game.money += level.start_money;
-        game.money_display = this.add.text(5, 30, '$' + game.money, {
-            font: '16px Arial',
-            fill: 'green'
-        });
-        // add breath display
-        game.breath_display = this.add.text(5, 55, '', {
-            font: '16px Arial',
-            fill: 'blue'
-        });
-        game.breath_display.blinkTimer = time;
-
-
-        // add pause button
-        game.pause_button = this.add.text(this.width-100, 10, 'pause (p)', {
-            font: '16px Arial',
-            cursor: 'pointer'
-        });
-        game.pause_button.inputEnabled = true;
-
-
-        // add hotbar
-        game.hotbar = level.add.sprite(20, game.height - 60, 'hotbar');
-        game.hotbar_select = level.add.sprite(4, 4, 'hotbar_select');
-        game.hotbar.addChild(game.hotbar_select);
-
-        // add player
-        player = level.add.sprite(level.world.centerX, game.GROUND_Y-50, 'guy');
-        level.physics.arcade.enable(player);        
-        player.anchor.setTo(0.5, 0.5);
-        player.body.collideWorldBounds = true;
-        player.body.maxVelocity.setTo(game.stats.speed, game.stats.speed * 10);
-        player.body.drag.setTo(game.DRAG, 0);
-        game.addHealthBar(player, game.stats.hp);
-        game.player_hp_display.setText(player.health);
-
-        player.water_bar_container = game.add.sprite(-16, -19, 'health_bar_container');
-        player.water_bar = game.add.sprite(1, 1, 'water_bar');
-        player.water_bar_container.addChild(player.water_bar);
-        player.addChild(player.water_bar_container);
-        player.maxBreath = 1000;
-        player.breath = player.maxBreath;
-
-
-        // add spaceships
+        game.addSetting(level);
+        game.addDisplays();
+        player = game.addPlayer(level);
         spaceships = game.addSpaceships(level, level.num_spaceships);
 
         // add turrets
         level.turrets = [];
-        var addTurret = function(index, img_id) {
-            // create turret group
-            var group = level.add.group();
-            game.addTurretProperties(group, img_id);
-
-            // add turret to hotbar
-            var turret_sprite = level.add.sprite(25*index + 5, 5, img_id);
-            turret_sprite.scale = {x: 0.625, y: 0.625};
-            game.hotbar.addChild(turret_sprite);
-            var num_text = level.add.text(25*index + 15, 33, String(index+1), {
-                font: '12px Arial'
-            });
-            num_text.anchor.setTo(0.5, 0);
-            game.hotbar.addChild(num_text);
-
-            return group;
-        }
-
-        blue_turrets = addTurret(0, 'blue_turret'); // blue turrets should always be available
+        blue_turrets = game.addTurret(level, 0, 'blue_turret'); // blue turrets should always be available
         level.turrets[0] = blue_turrets;
         level.hot_turret = blue_turrets;
 
         if (level.availTurrets.green_turret) {
-            green_turrets = addTurret(1, 'green_turret');
+            green_turrets = game.addTurret(level, 1, 'green_turret');
             level.turrets[1] = green_turrets;
         }
 
@@ -166,7 +82,7 @@ var definePropertyFunctions = function(game) {
 
         // Show FPS
         game.time.advancedTiming = true;
-        game.fpsText = game.add.text(5, 100, '', {font: '16px Arial'});
+        game.fpsText = game.add.text(5, 105, '', {font: '16px Arial'});
     };
 
     game.updateWorld = function(level, next_level_id) {
@@ -176,7 +92,7 @@ var definePropertyFunctions = function(game) {
 
         var time = level.time.now;
 
-        // collisions
+        // check collisions
         level.physics.arcade.collide(player, level.ground);
         level.physics.arcade.overlap(red_bullets, level.ground, function(bullet) {
             bullet.kill();
@@ -204,15 +120,8 @@ var definePropertyFunctions = function(game) {
                 level.physics.arcade.collide(level.turrets[i], level.turrets[j], game.turretCollision);
             }
         }
-
         level.physics.arcade.overlap(gems, player, game.gotGem);
 
-        // check pause button
-        if (game.pause_button.input.pointerDown() || level.input.keyboard.isDown(80)) {
-            game.paused = !game.paused;
-            // unpause isnt implemented yet
-            // http://examples.phaser.io/_site/view_full.html?d=misc&f=pause+menu.js&t=pause%20menu
-        }
 
         // check hotbar switch (keycode for 1 is 49)
         var checkHotbarKey = function(keynum) {
@@ -232,6 +141,24 @@ var definePropertyFunctions = function(game) {
             player.body.acceleration.x = game.PLAYER_ACCELERATION;
         } else {
             player.body.acceleration.x = 0;
+        }
+
+        // jumping; double jump and variable jump (variable doesnt seem to work)
+        var isGrounded = player.body.touching.down;
+        if (isGrounded) level.canDoubleJump = true;
+        if (level.input.keyboard.justPressed(Phaser.Keyboard.UP, 5)) {
+            if (level.canDoubleJump) level.canVariableJump = true;
+
+            if (level.canDoubleJump || isGrounded) {
+                player.body.velocity.y = game.PLAYER_JUMP_SPEED;
+                if (!isGrounded) level.canDoubleJump = false;
+            } 
+        }
+        if (level.canVariableJump && level.input.keyboard.justPressed(Phaser.Keyboard.UP, 150)) {
+            player.body.velocity.y = game.PLAYER_JUMP_SPEED;
+        }
+        if (!level.input.keyboard.justPressed(Phaser.Keyboard.UP)) {
+            level.canVariableJump = false;
         }
 
         // check player breath
@@ -260,24 +187,6 @@ var definePropertyFunctions = function(game) {
             }
         } else {
             game.breath_display.setStyle({font: '16px Arial', fill: 'blue'})
-        }
-
-        // jumping; double jump and variable jump (variable doesnt seem to work)
-        var isGrounded = player.body.touching.down;
-        if (isGrounded) level.canDoubleJump = true;
-        if (level.input.keyboard.justPressed(Phaser.Keyboard.UP, 5)) {
-            if (level.canDoubleJump) level.canVariableJump = true;
-
-            if (level.canDoubleJump || isGrounded) {
-                player.body.velocity.y = game.PLAYER_JUMP_SPEED;
-                if (!isGrounded) level.canDoubleJump = false;
-            } 
-        }
-        if (level.canVariableJump && level.input.keyboard.justPressed(Phaser.Keyboard.UP, 150)) {
-            player.body.velocity.y = game.PLAYER_JUMP_SPEED;
-        }
-        if (!level.input.keyboard.justPressed(Phaser.Keyboard.UP)) {
-            level.canVariableJump = false;
         }
 
 
@@ -376,17 +285,71 @@ var definePropertyFunctions = function(game) {
             game.stage.backgroundColor = 'rgba(38, 139, 56, 0.3)';
             level.nextLevelTimer = time;
         }
+
+
+        // check pause button
+        if (game.pause_button.input.pointerDown() || level.input.keyboard.isDown(80)) {
+            game.paused = !game.paused;
+            // unpause isnt implemented yet
+            // http://examples.phaser.io/_site/view_full.html?d=misc&f=pause+menu.js&t=pause%20menu
+        }
     };
 
 
-    // ----------------------------- enemies ---------------------------------
+    // -------------------- sprite and sprite groups -------------------------
+
+    game.addSetting = function(level) {
+        level.add.sprite(0, game.GROUND_Y-game.height, 'sky');
+        level.add.sprite(0, game.GROUND_Y, 'ground_gradient');
+        level.ground = game.add.group();
+
+        var addGroundBlock = function(x, y, img_id) {
+            var groundBlock = level.add.sprite(x, y, img_id);
+            level.physics.arcade.enable(groundBlock);
+            groundBlock.body.immovable = true;
+            groundBlock.body.allowGravity = false;
+            level.ground.add(groundBlock); 
+        }
+
+        for (var i = 0; i < game.width/40; i++) {
+            if (i !== 4 && i !== 16) {
+                addGroundBlock(40*i, game.GROUND_Y, 'grass');
+                addGroundBlock(40*i, game.GROUND_Y + 20, 'ground');
+            }
+            for (var j = 0; j < 2; j++) {
+                if (i < 4 || i > 16) addGroundBlock(40*i, game.GROUND_Y + 40 + 20*j, 'ground');
+            }
+            addGroundBlock(40*i, game.GROUND_Y + 80, 'ground');
+        }        
+    }
+
+    game.addPlayer = function(level) {
+        // add player
+        var player = level.add.sprite(level.world.centerX, game.GROUND_Y-50, 'guy');
+        level.physics.arcade.enable(player);        
+        player.anchor.setTo(0.5, 0.5);
+        player.body.collideWorldBounds = true;
+        player.body.maxVelocity.setTo(game.stats.speed, game.stats.speed * 10);
+        player.body.drag.setTo(game.DRAG, 0);
+        game.addHealthBar(player, game.stats.hp);
+        game.player_hp_display.setText(player.health);
+
+        player.water_bar_container = game.add.sprite(-16, -19, 'health_bar_container');
+        player.water_bar = game.add.sprite(1, 1, 'water_bar');
+        player.water_bar_container.addChild(player.water_bar);
+        player.addChild(player.water_bar_container);
+        player.maxBreath = 1000;
+        player.breath = player.maxBreath;
+        return player;
+    }
+
     game.addSpaceships = function(level, num) {
         // need to prevent spaceships from overlapping with each other
         // also need to make firing bullets more random
-        spaceships = level.add.group();
+        var spaceships = level.add.group();
         spaceships.enableBody = true;
         spaceships.physicsBodyType = Phaser.Physics.ARCADE;
-        spaceships.createMultiple(30, 'spaceship');
+        spaceships.createMultiple(num, 'spaceship');
         spaceships.setAll('anchor.x', 0.5);
         spaceships.setAll('anchor.y', 0.5);
 
@@ -395,24 +358,46 @@ var definePropertyFunctions = function(game) {
             spaceship.body.bounce.set(1);
             spaceship.fireTimer = game.time.now;
             spaceship.fireFreq = 2000;
+            game.addHealthBar(spaceship, 3);
+
             spaceship.shoot = function() {
                 var bullet = red_bullets.getFirstExists(false);
                 bullet.reset(spaceship.body.x + spaceship.body.width/2, bullet.height + spaceship.body.y + spaceship.body.height);
                 game.physics.arcade.moveToXY(bullet, spaceship.body.x + spaceship.body.width/2, game.height, 100);
             };
-            game.addHealthBar(spaceship, 3);
+
+            spaceship.events.onKilled.add(function(s) {
+                game.xp_bar.update(20);
+            }, this);
         });
 
         for (var i = 0; i < num; i++) {
             var spaceship = spaceships.getFirstExists(false);
-            spaceship.reset(level.world.randomX, 150, spaceship.maxHealth);
-            spaceship.body.velocity.x = 80 + 40*Math.random();
+            spaceship.reset(level.world.randomX, 130+40*Math.random(), spaceship.maxHealth);
+            spaceship.body.velocity.x = (80 + 40*Math.random()) * (2*Math.round(Math.random())-1);
             spaceship.body.allowGravity = false;
             spaceship.fireTimer = game.time.now;
         }
         return spaceships;
     }
 
+    game.addTurret = function(level, index, img_id) {
+        // create turret group
+        var group = level.add.group();
+        game.addTurretProperties(group, img_id);
+
+        // add turret to hotbar
+        var turret_sprite = level.add.sprite(25*index + 5, 5, img_id);
+        turret_sprite.scale = {x: 0.625, y: 0.625};
+        game.hotbar.addChild(turret_sprite);
+        var num_text = level.add.text(25*index + 15, 33, String(index+1), {
+            font: '12px Arial'
+        });
+        num_text.anchor.setTo(0.5, 0);
+        game.hotbar.addChild(num_text);
+
+        return group;
+    }
 
     // ----------------------- group properties ------------------------------
     game.addHealthBar = function(sprite, num) {
@@ -485,6 +470,64 @@ var definePropertyFunctions = function(game) {
     game.gotGem = function(player, gem) {
         gem.kill();
         game.updateMoney(10);
+    }
+
+    // -------------------------- displays -----------------------------------
+    game.addDisplays = function() {
+         // add hp display
+        game.player_hp_display = this.add.text(5, 5, '', {font: '16px Arial'});  
+
+        // add money display
+        game.money_display = this.add.text(5, 30, '$' + game.money, {
+            font: '16px Arial',
+            fill: 'green'
+        });
+        
+        // add breath display
+        game.breath_display = this.add.text(5, 55, '', {
+            font: '16px Arial',
+            fill: 'blue'
+        });
+        game.breath_display.blinkTimer = game.time.now;
+
+        // level display
+        game.level_text = this.add.text(game.world.centerX, 32, 'Level 1', {
+            font: '14px Arial'
+        });
+        game.level_text.anchor.setTo(0.5, 0.5);
+
+        //add xp display
+        game.xp_bar_container = this.add.sprite(game.world.centerX, 15, 'xp_bar_container');
+        game.xp_bar_container.anchor.setTo(0.5, 0.5);
+        game.xp_bar = this.add.sprite(0, 0, 'xp_bar');
+        game.xp_bar.anchor.setTo(0.5, 0.5);
+        game.xp_bar_container.addChild(game.xp_bar);
+        game.xp_bar.update = function(incr) {
+            if (incr) game.xp += incr;
+            this.crop({
+                x: 0,
+                y: 0,
+                width: 1.2*(game.xp % 100),
+                height: 10
+            });
+            var level = 1 + Math.floor(game.xp/100)
+            if (game.player_level !== level) {
+                game.level_text.setText('Level ' + level);
+            }
+        }
+        game.xp_bar.update();
+
+        // add pause button
+        game.pause_button = this.add.text(this.width-80, 10, 'pause (p)', {
+            font: '16px Arial',
+            cursor: 'pointer'
+        });
+        game.pause_button.inputEnabled = true;
+
+        // add hotbar
+        game.hotbar = this.add.sprite(20, game.height - 60, 'hotbar');
+        game.hotbar_select = this.add.sprite(4, 4, 'hotbar_select');
+        game.hotbar.addChild(game.hotbar_select);
     }
 
     // -------------------------- miscellaneous ------------------------------
