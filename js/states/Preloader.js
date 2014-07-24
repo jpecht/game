@@ -18,15 +18,21 @@ Game.Preloader.prototype = {
 		this.load.audio('titleMusic', ['audio/main_menu.mp3']);
 		this.load.bitmapFont('caslon', 'fonts/caslon.png', 'fonts/caslon.xml');*/
 
+		//this.load.spritesheet('atlas', 'img/spritesheet.png', 'img/spritesheet.json');
+
 		this.load.image('class_template', 'img/class_template.png');
 
     	this.load.image('sky', 'img/clouds.png');
     	this.load.image('grass', 'img/grass.png');
     	this.load.image('ground', 'img/ground.png');
     	this.load.image('ground_gradient', 'img/ground_gradient.png');
+    	this.load.image('slope_right', 'img/slope_right.png');
+    	this.load.image('slope_left', 'img/slope_left.png');
 
-        this.load.image('guy', 'img/guy.png');
-        //this.load.atlas('playersheet', 'img/playersheet.png', 'img/playersheet.json');
+        this.load.spritesheet('guy', 'img/playersheet.png', 32, 32);
+        
+        this.load.atlas('atlas', 'img/spritesheet.png', 'img/spritesheet.json');
+
     	this.load.image('gem', 'img/gem.png');
 		this.load.image('spaceship', 'img/ufo.png');
 		this.load.image('red_bullet', 'img/red_shot.png');

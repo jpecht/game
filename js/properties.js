@@ -10,6 +10,8 @@ var definePropertyFunctions = function(game) {
     game.TURRET_BUFFER_TIME = 400;
     game.TURRET_MAX_SPEED = 50;
     
+    game.is_paused = false;
+
     game.money = 0;
     game.xp = 0;
     game.player_level = 1;
@@ -134,13 +136,26 @@ var definePropertyFunctions = function(game) {
 
 
         // update player movement
-        cursors = level.input.keyboard.createCursorKeys();   
+        cursors = level.input.keyboard.createCursorKeys();
+        var walk_status = '';
         if (cursors.left.isDown) {
             player.body.acceleration.x = -game.PLAYER_ACCELERATION;  
+            walk_status = 'left';
         } else if (cursors.right.isDown) {
             player.body.acceleration.x = game.PLAYER_ACCELERATION;
+            walk_status = 'right';
         } else {
             player.body.acceleration.x = 0;
+            walk_status = '';
+        }
+        if (player.walk_status !== walk_status) {
+            if (walk_status === 'left') player.animations.play('walkLeft', 10, true);
+            if (walk_status === 'right') player.animations.play('walkRight', 10, true);
+            if (walk_status === '') {
+                if (player.walk_status === 'left') player.animations.play('stopWalkLeft', 20, false);
+                else if (player.walk_status === 'right') player.animations.play('stopWalkRight', 20, false);
+            }
+            player.walk_status = walk_status;
         }
 
         // jumping; double jump and variable jump (variable doesnt seem to work)
@@ -289,9 +304,7 @@ var definePropertyFunctions = function(game) {
 
         // check pause button
         if (game.pause_button.input.pointerDown() || level.input.keyboard.isDown(80)) {
-            game.paused = !game.paused;
-            // unpause isnt implemented yet
-            // http://examples.phaser.io/_site/view_full.html?d=misc&f=pause+menu.js&t=pause%20menu
+            game.isPaused = !game.isPaused;
         }
     };
 
@@ -300,7 +313,7 @@ var definePropertyFunctions = function(game) {
 
     game.addSetting = function(level) {
         level.add.sprite(0, game.GROUND_Y-game.height, 'sky');
-        level.add.sprite(0, game.GROUND_Y, 'ground_gradient');
+        level.add.sprite(126, game.GROUND_Y, 'ground_gradient');
         level.ground = game.add.group();
 
         var addGroundBlock = function(x, y, img_id) {
@@ -311,21 +324,27 @@ var definePropertyFunctions = function(game) {
             level.ground.add(groundBlock); 
         }
 
-        for (var i = 0; i < game.width/40; i++) {
-            if (i !== 4 && i !== 16) {
-                addGroundBlock(40*i, game.GROUND_Y, 'grass');
-                addGroundBlock(40*i, game.GROUND_Y + 20, 'ground');
+        for (var i = 0; i < game.width/21; i++) {
+            if (i < 7 || (i > 9 && i < 30) || i > 32) {
+                addGroundBlock(21*i, game.GROUND_Y, 'grass');
+                addGroundBlock(21*i, game.GROUND_Y + 21, 'ground');
             }
             for (var j = 0; j < 2; j++) {
-                if (i < 4 || i > 16) addGroundBlock(40*i, game.GROUND_Y + 40 + 20*j, 'ground');
+                if (i < 7 || i > 32) addGroundBlock(21*i, game.GROUND_Y + 21*(j+2), 'ground');
+                addGroundBlock(21*i, game.GROUND_Y + 21*(j+4), 'ground');
             }
-            addGroundBlock(40*i, game.GROUND_Y + 80, 'ground');
         }        
     }
 
     game.addPlayer = function(level) {
         // add player
-        var player = level.add.sprite(level.world.centerX, game.GROUND_Y-50, 'guy');
+        var player = level.add.sprite(level.world.centerX, game.GROUND_Y-50, 'guy', 1);
+        player.animations.add('walkLeft', [12, 13, 14, 13], true);
+        player.animations.add('walkRight', [24, 25, 26, 25], true);
+        player.animations.add('stopWalkLeft', [9, 10, 11, 1], false);
+        player.animations.add('stopWalkRight', [35, 34, 33, 1], false);
+        player.walk_status = '';
+
         level.physics.arcade.enable(player);        
         player.anchor.setTo(0.5, 0.5);
         player.body.collideWorldBounds = true;
