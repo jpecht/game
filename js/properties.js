@@ -231,10 +231,8 @@ var definePropertyFunctions = function(game) {
                         level.constructing = true;
                         game.updateMoney(-level.hot_turret.attr.cost*game.stats.price_mod/100);
 
-                        var turret = level.hot_turret.getFirstExists(false);
+                        var turret = level.hot_turret.getTurret();
                         turret.beingConstructed = true;
-                        turret.reset(player.body.x + player.body.width/2, 0, turret.maxHealth);
-                        turret.birthTime = null;
                         level.hot_turret.constrTurret = turret;
                     }
                 }
@@ -404,6 +402,13 @@ var definePropertyFunctions = function(game) {
         // create turret group
         var group = level.add.group();
         game.addTurretProperties(group, img_id);
+        group.getTurret = function() {
+            var turret = group.getFirstExists(false);
+            turret.reset(player.body.x + player.body.width/2, 0, turret.maxHealth);
+            turret.birthTime = null;
+            turret.health_bar.crop({x: 0, y: 0, width: 30, height: 4});
+            return turret;
+        };
 
         // add turret to hotbar
         var turret_sprite = level.add.sprite(25*index + 5, 5, img_id);
@@ -532,6 +537,7 @@ var definePropertyFunctions = function(game) {
             var level = 1 + Math.floor(game.xp/100)
             if (game.player_level !== level) {
                 game.level_text.setText('Level ' + level);
+
             }
         }
         game.xp_bar.update();
@@ -547,6 +553,27 @@ var definePropertyFunctions = function(game) {
         game.hotbar = this.add.sprite(20, game.height - 60, 'hotbar');
         game.hotbar_select = this.add.sprite(4, 4, 'hotbar_select');
         game.hotbar.addChild(game.hotbar_select);
+
+        // add stat sidebar
+        game.sidebar = this.add.sprite(game.width-30, 80, 'sidebar');
+        game.sidebar.collapsed = true;
+        game.sidebar_arrow = this.add.sprite(5, 160, 'sidebar_arrow_left');
+        game.sidebar_arrow.alpha = 0.5;
+        game.sidebar_arrow.inputEnabled = true;
+        game.sidebar_arrow.events.onInputDown.add(function() {
+            game.sidebar.toggleDisplay();
+        }, this);
+        game.sidebar.addChild(game.sidebar_arrow);
+        game.sidebar.toggleDisplay = function() {
+            if (this.collapsed) {
+                this.position.x = game.width - 300;
+            } else {
+                this.position.x = game.width - 30;
+            }
+            this.collapsed = !this.collapsed;
+        }
+
+        // add class tree
     }
 
     // -------------------------- miscellaneous ------------------------------

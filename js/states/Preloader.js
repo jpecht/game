@@ -18,9 +18,11 @@ Game.Preloader.prototype = {
 		this.load.audio('titleMusic', ['audio/main_menu.mp3']);
 		this.load.bitmapFont('caslon', 'fonts/caslon.png', 'fonts/caslon.xml');*/
 
-		//this.load.spritesheet('atlas', 'img/spritesheet.png', 'img/spritesheet.json');
 
 		this.load.image('class_template', 'img/class_template.png');
+		this.load.image('sidebar', 'img/sidebar.png');
+		this.load.image('sidebar_arrow_left', 'img/sidebar_arrow_left.png');
+		this.load.image('sidebar_arrow_right', 'img/sidebar_arrow_right.png');
 
     	this.load.image('sky', 'img/clouds.png');
     	this.load.image('grass', 'img/grass.png');
