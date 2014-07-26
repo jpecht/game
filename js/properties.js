@@ -221,6 +221,11 @@ var definePropertyFunctions = function(game) {
                     if (game.money >= level.hot_turret.attr.cost) {
                         level.turretTimer = time;
                         level.inBuffer = true;
+                        level.incoming_text = level.add.text(level.world.centerX, 90, 'Incoming!', {
+                            font: '22px Arial',
+                            fill: '#BF3030'
+                        });
+                        level.incoming_text.anchor.setTo(0.5, 0.5);
                     } else {
                         game.notEnoughMoney();
                     }                    
@@ -230,6 +235,7 @@ var definePropertyFunctions = function(game) {
                         level.inBuffer = false;
                         level.constructing = true;
                         game.updateMoney(-level.hot_turret.attr.cost*game.stats.price_mod/100);
+                        level.incoming_text.destroy();
 
                         var turret = level.hot_turret.getTurret();
                         turret.beingConstructed = true;
@@ -237,7 +243,7 @@ var definePropertyFunctions = function(game) {
                     }
                 }
             } else {
-                if (time >= level.turretTimer+ game.TURRET_BUFFER_TIME + level.hot_turret.attr.constructTime) {
+                if (time >= level.turretTimer + game.TURRET_BUFFER_TIME + level.hot_turret.attr.constructTime) {
                     // done building turret
                     level.constructing = false;
                     level.inPostConstruct = true;
@@ -256,7 +262,10 @@ var definePropertyFunctions = function(game) {
                 }
             }
         } else {
-            level.inBuffer = false;
+            if (level.inBuffer) {
+                level.inBuffer = false;
+                level.incoming_text.destroy();
+            }
             if (!cursors.down.isDown) level.inPostConstruct = false;
             if (level.constructing) {
                 level.constructing = false;
@@ -556,22 +565,56 @@ var definePropertyFunctions = function(game) {
 
         // add stat sidebar
         game.sidebar = this.add.sprite(game.width-30, 80, 'sidebar');
+        game.sidebar.alpha = 0.3;
         game.sidebar.collapsed = true;
-        game.sidebar_arrow = this.add.sprite(5, 160, 'sidebar_arrow_left');
-        game.sidebar_arrow.alpha = 0.5;
-        game.sidebar_arrow.inputEnabled = true;
-        game.sidebar_arrow.events.onInputDown.add(function() {
-            game.sidebar.toggleDisplay();
-        }, this);
-        game.sidebar.addChild(game.sidebar_arrow);
+        
+        game.sidebar.createArrow = function(img_id) {
+            game.sidebar_arrow = game.add.sprite(5, 160, img_id);
+            game.sidebar_arrow.alpha = (img_id === 'sidebar_arrow_left') ? 1 : 0.3;
+            game.sidebar_arrow.inputEnabled = true;
+            game.sidebar_arrow.events.onInputDown.add(function() {
+                game.sidebar.toggleDisplay();
+            }, this);
+            game.sidebar.addChild(game.sidebar_arrow);
+        }
+        game.sidebar.createArrow('sidebar_arrow_left');
         game.sidebar.toggleDisplay = function() {
+            game.sidebar_arrow.destroy();
             if (this.collapsed) {
                 this.position.x = game.width - 300;
+                game.sidebar.createArrow('sidebar_arrow_right');
+                game.sidebar.alpha = 0.8;
             } else {
                 this.position.x = game.width - 30;
+                game.sidebar.createArrow('sidebar_arrow_left');
+                game.sidebar.alpha = 0.3;
             }
             this.collapsed = !this.collapsed;
+            game.sidebar.bringToTop();
         }
+
+        var player_name_text = this.add.text((300-30)/2, 40, 'Player', {font: '20px Arial'});
+        game.sidebar.addChild(player_name_text);
+        var name_texts = ['Class', 'Health', 'Speed', 'Build Speed', 'Price Modifier'];
+        for (var i = 0; i < name_texts.length; i++) {
+            var n_t = this.add.text(50, 90+20*i, name_texts[i]+': ', {font: '14px Arial'});
+            game.sidebar.addChild(n_t);
+        }
+        var stats_text = {class_name: false, hp: false, speed: false, build_speed: false, price_mod: false};
+        var i = 0;
+        for (var ind in stats_text) {
+            stats_text[ind] = this.add.text(150, 90+20*i, '', {font: '14px Arial'});
+            game.sidebar.addChild(stats_text[ind]);
+            i++;
+        }
+        game.sidebar.updateStats = function() {
+            stats_text.class_name.setText(game.stats.class_name);
+            stats_text.hp.setText(game.stats.hp);
+            stats_text.speed.setText(game.stats.speed);
+            stats_text.build_speed.setText(200 - game.stats.build_speed_mod);
+            stats_text.price_mod.setText(game.stats.price_mod);
+        }
+        game.sidebar.updateStats();
 
         // add class tree
     }

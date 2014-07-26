@@ -47,6 +47,7 @@ Game.PickClass.prototype = {
             var sprite = this.player_classes[i];
             sprite.inputEnabled = true;
             sprite.alpha = 0.5;
+            sprite.class_name = names[i].charAt(0) + names[i].substr(1, names[i].length-1).toLowerCase();
 
             var name = this.add.text(sprite.width/2, 50, names[i], {font: '14px Arial'});
             name.anchor.setTo(0.5, 0.5);
@@ -76,7 +77,7 @@ Game.PickClass.prototype = {
             if (sprite.input.pointerDown()) {
                 //this.music.stop();
 
-                this.game.stats = {};
+                this.game.stats = {class_name: sprite.class_name};
                 for (var ind in sprite.stats) this.game.stats[ind] = sprite.stats[ind];
 
                 this.state.start('Level1');
